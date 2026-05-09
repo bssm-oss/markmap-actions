@@ -41,6 +41,10 @@ inputs:
         id-token: write
     required: false
     default: 'true'
+  lang:
+    description: 'Default language for the index page (en or ko)'
+    required: false
+    default: 'en'
 
 outputs:
   generated-files:
@@ -68,6 +72,7 @@ runs:
         INPUT_FORMAT: ${{ inputs.format }}
         INPUT_COMMIT: ${{ inputs.commit }}
         INPUT_COMMIT-MESSAGE: ${{ inputs.commit-message }}
+        INPUT_LANG: ${{ inputs.lang }}
 
     - name: Enable GitHub Pages if not already active
       if: ${{ inputs.deploy-pages == 'true' }}
