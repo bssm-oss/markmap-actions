@@ -115,7 +115,11 @@ transition:border-color .15s,background .15s;cursor:pointer;}
 <a id="mm-back" href="javascript:history.back()">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 <polyline points="15 18 9 12 15 6"/>
-</svg>뒤로</a>`;
+</svg><span id="mm-back-label">Back</span></a>
+<script>(function(){
+  var l=localStorage.getItem('mm-lang')||'en';
+  document.getElementById('mm-back-label').textContent=l==='ko'?'뒤로':'Back';
+})();</script>`;
 
   return html.replace('</body>', backBtn + '\n</body>');
 }
@@ -367,11 +371,26 @@ export function buildIndexHtml(files: string[], lang: string = 'en'): string {
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      aside { width: 170px; }
+      .file-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
     @media (max-width: 600px) {
       aside { display: none; }
-      .file-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-      main { padding: 16px; }
+      header { padding: 0 14px; gap: 8px; }
       .logo-text { display: none; }
+      main { padding: 14px; }
+      .file-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+      .file-card { padding: 12px 10px 10px; }
+      .card-icon { width: 28px; height: 28px; }
+      .breadcrumb { font-size: 0.8rem; margin-bottom: 14px; }
+      .hdr-btn { height: 28px; padding: 0 8px; font-size: 0.7rem; }
+    }
+    @media (max-width: 400px) {
+      .file-grid { grid-template-columns: repeat(2, 1fr); }
+      header { height: 48px; }
+      .layout { min-height: calc(100vh - 48px); }
     }
   </style>
 </head>
@@ -450,7 +469,7 @@ export function buildIndexHtml(files: string[], lang: string = 'en'): string {
   <script>
   (function() {
     var TREE = ${treeJson};
-    var LANG = '${initialLang}';
+    var LANG = localStorage.getItem('mm-lang') || '${initialLang}';
 
     var I18N = {
       en: {
@@ -626,6 +645,7 @@ export function buildIndexHtml(files: string[], lang: string = 'en'): string {
     /* ── Language toggle ── */
     document.getElementById('langBtn').addEventListener('click', function() {
       LANG = LANG === 'en' ? 'ko' : 'en';
+      localStorage.setItem('mm-lang', LANG);
       applyLangLabels();
       navigate(currentPath);
     });
