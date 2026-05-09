@@ -25,6 +25,10 @@ inputs:
     description: 'Output format: svg | html | both'
     required: false
     default: 'svg'
+  commit:
+    description: 'Commit and push generated files back to the repository'
+    required: false
+    default: 'true'
   commit-message:
     description: 'Commit message used when pushing the generated files'
     required: false

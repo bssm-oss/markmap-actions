@@ -32,6 +32,7 @@ async function run(): Promise<void> {
   const offline = core.getBooleanInput('offline');
   const toolbar = core.getBooleanInput('toolbar');
   const format = (core.getInput('format') || 'svg') as Format;
+  const shouldCommit = core.getBooleanInput('commit');
   const commitMessage =
     core.getInput('commit-message') || 'chore: update markmap visualizations';
   const workspaceDir = process.env.GITHUB_WORKSPACE ?? process.cwd();
@@ -106,7 +107,7 @@ async function run(): Promise<void> {
   core.setOutput('generated-files', succeeded.join('\n'));
   core.setOutput('failed-files', failed.join('\n'));
 
-  if (succeeded.length > 0) {
+  if (shouldCommit && succeeded.length > 0) {
     const committed = await commitAndPush(outputDir, workspaceDir, commitMessage);
     if (!committed) core.info('No changes to commit.');
     else core.info('Committed and pushed generated files.');
