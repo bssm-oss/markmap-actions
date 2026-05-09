@@ -1,0 +1,27 @@
+name: Markmap
+
+on:
+  push:
+    paths:
+      - '**/*.md'
+      - '.github/workflows/markmap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  markmap:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.markmap.outputs.page-url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: markmap
+        uses: bssm-oss/markmap-actions@main
+        with:
+          files: '**/*.md'
