@@ -125,10 +125,18 @@ transition:border-color .15s,background .15s;cursor:pointer;}
 }
 
 export function rewriteMdLinks(html: string): string {
-  // Rewrite relative .md hrefs to .html (skip absolute URLs)
-  return html.replace(
+  const rewrite = (p: string, hash?: string) =>
+    `${p.replace(/\.md$/, '.html')}${hash ?? ''}`;
+
+  // Plain HTML: href="path.md"
+  const pass1 = html.replace(
     /href="((?!https?:\/\/)(?!\/\/)[^"#]*\.md)(#[^"]*)?"/g,
-    (_, p, hash) => `href="${p.replace(/\.md$/, '.html')}${hash ?? ''}"`,
+    (_, p, hash) => `href="${rewrite(p, hash)}"`,
+  );
+  // JSON-serialized inside <script>: href=\"path.md\"
+  return pass1.replace(
+    /href=\\"((?!https?:\/\/)(?!\/\/)[^"\\#]*\.md)(#[^"\\]*)?\\"/g,
+    (_, p, hash) => `href=\\"${rewrite(p, hash)}\\"`,
   );
 }
 
