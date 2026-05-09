@@ -6,8 +6,13 @@ import {
   parsePatterns,
   buildOutputPath,
   convertToHtml,
+  convertHtmlToSvg,
+  launchBrowser,
   commitAndPush,
+  type Browser,
 } from './lib';
+
+type Format = 'svg' | 'html' | 'both';
 
 async function expandGlobs(patterns: string[], workspaceDir: string): Promise<string[]> {
   const globber = await globModule.create(patterns.join('\n'), {
@@ -26,9 +31,13 @@ async function run(): Promise<void> {
   const outputDir = core.getInput('output-dir') || '.markmap';
   const offline = core.getBooleanInput('offline');
   const toolbar = core.getBooleanInput('toolbar');
+  const format = (core.getInput('format') || 'svg') as Format;
   const commitMessage =
     core.getInput('commit-message') || 'chore: update markmap visualizations';
   const workspaceDir = process.env.GITHUB_WORKSPACE ?? process.cwd();
+
+  const needsSvg = format === 'svg' || format === 'both';
+  const needsHtml = format === 'html' || format === 'both';
 
   const patterns = parsePatterns(filesInput);
   const files = await expandGlobs(patterns, workspaceDir);
@@ -40,27 +49,58 @@ async function run(): Promise<void> {
 
   core.info(`Found ${files.length} markdown file(s) to process.`);
 
+  let browser: Browser | undefined;
+  if (needsSvg) {
+    browser = await launchBrowser();
+  }
+
   const succeeded: string[] = [];
   const failed: string[] = [];
 
-  for (const filePath of files) {
-    const rel = path.relative(workspaceDir, filePath);
-    const outputPath = buildOutputPath(filePath, workspaceDir, outputDir);
+  try {
+    for (const filePath of files) {
+      const rel = path.relative(workspaceDir, filePath);
 
-    try {
-      await fs.mkdir(path.dirname(outputPath), { recursive: true });
-      const content = await fs.readFile(filePath, 'utf-8');
-      const html = await convertToHtml(content, { toolbar, offline });
-      await fs.writeFile(outputPath, html, 'utf-8');
+      try {
+        const content = await fs.readFile(filePath, 'utf-8');
 
-      const outRel = path.relative(workspaceDir, outputPath);
-      core.info(`  ${rel} → ${outRel}`);
-      succeeded.push(outRel);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      core.warning(`Failed to convert ${rel}: ${msg}`);
-      failed.push(rel);
+        // SVG rendering needs offline HTML so puppeteer doesn't make CDN requests
+        const html = await convertToHtml(content, {
+          toolbar: needsHtml ? toolbar : false,
+          offline: needsSvg ? true : offline,
+        });
+
+        if (needsHtml) {
+          const htmlPath = buildOutputPath(filePath, workspaceDir, outputDir, '.html');
+          await fs.mkdir(path.dirname(htmlPath), { recursive: true });
+
+          // When format is 'both' and offline:false, re-generate without inlining
+          const htmlContent =
+            format === 'both' && !offline
+              ? await convertToHtml(content, { toolbar, offline: false })
+              : html;
+
+          await fs.writeFile(htmlPath, htmlContent, 'utf-8');
+          core.info(`  ${rel} → ${path.relative(workspaceDir, htmlPath)}`);
+          succeeded.push(path.relative(workspaceDir, htmlPath));
+        }
+
+        if (needsSvg && browser) {
+          const svgPath = buildOutputPath(filePath, workspaceDir, outputDir, '.svg');
+          await fs.mkdir(path.dirname(svgPath), { recursive: true });
+          const svg = await convertHtmlToSvg(html, browser);
+          await fs.writeFile(svgPath, svg, 'utf-8');
+          core.info(`  ${rel} → ${path.relative(workspaceDir, svgPath)}`);
+          succeeded.push(path.relative(workspaceDir, svgPath));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        core.warning(`Failed to convert ${rel}: ${msg}`);
+        failed.push(rel);
+      }
     }
+  } finally {
+    await browser?.close();
   }
 
   core.setOutput('generated-files', succeeded.join('\n'));
@@ -69,7 +109,7 @@ async function run(): Promise<void> {
   if (succeeded.length > 0) {
     const committed = await commitAndPush(outputDir, workspaceDir, commitMessage);
     if (!committed) core.info('No changes to commit.');
-    else core.info(`Committed and pushed generated files.`);
+    else core.info('Committed and pushed generated files.');
   }
 
   if (failed.length > 0) {

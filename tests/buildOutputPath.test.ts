@@ -16,7 +16,7 @@ describe('buildOutputPath', () => {
     expect(result).toBe(path.join(workspace, '.markmap', 'docs', 'guide', 'intro.html'));
   });
 
-  it('strips .md extension and adds .html', () => {
+  it('strips .md extension and adds .html by default', () => {
     const result = buildOutputPath('/repo/notes.md', workspace, outputDir);
     expect(result).toMatch(/\.html$/);
     expect(result).not.toMatch(/\.md/);
@@ -25,6 +25,11 @@ describe('buildOutputPath', () => {
   it('strips non-.md extensions too', () => {
     const result = buildOutputPath('/repo/notes.markdown', workspace, outputDir);
     expect(result).toBe(path.join(workspace, '.markmap', 'notes.html'));
+  });
+
+  it('uses the provided extension', () => {
+    const result = buildOutputPath('/repo/README.md', workspace, outputDir, '.svg');
+    expect(result).toBe(path.join(workspace, '.markmap', 'README.svg'));
   });
 
   it('respects a custom outputDir', () => {

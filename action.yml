@@ -21,6 +21,10 @@ inputs:
     description: 'Include an interactive toolbar in the generated HTML'
     required: false
     default: 'true'
+  format:
+    description: 'Output format: svg | html | both'
+    required: false
+    default: 'svg'
   commit-message:
     description: 'Commit message used when pushing the generated files'
     required: false

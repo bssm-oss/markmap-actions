@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { Transformer, type IAssets } from 'markmap-lib';
 import { fillTemplate, baseJsPaths } from 'markmap-render';
@@ -9,6 +10,9 @@ import {
   type JSItem,
   type CSSItem,
 } from 'markmap-common';
+import puppeteer, { type Browser } from 'puppeteer-core';
+
+export type { Browser };
 
 const TOOLBAR_VERSION = '0.18.12';
 
@@ -108,10 +112,80 @@ export function buildOutputPath(
   filePath: string,
   workspaceDir: string,
   outputDir: string,
+  ext = '.html',
 ): string {
   const rel = path.relative(workspaceDir, filePath);
   const withoutExt = rel.replace(/\.[^.]+$/, '');
-  return path.join(workspaceDir, outputDir, `${withoutExt}.html`);
+  return path.join(workspaceDir, outputDir, `${withoutExt}${ext}`);
+}
+
+export function findChromePath(): string {
+  const candidates = [
+    process.env.CHROME_PATH,
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ].filter(Boolean) as string[];
+
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  throw new Error(
+    'Chrome/Chromium not found. Install google-chrome-stable or set CHROME_PATH.',
+  );
+}
+
+export async function launchBrowser(): Promise<Browser> {
+  return puppeteer.launch({
+    executablePath: findChromePath(),
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+    ],
+    headless: true,
+  });
+}
+
+export async function convertHtmlToSvg(html: string, browser: Browser): Promise<string> {
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+    await page.waitForFunction(
+      () => {
+        const w = window as any;
+        if (!w.mm) return false;
+        const svg = document.querySelector('svg#mindmap');
+        return svg !== null && svg.childNodes.length > 0;
+      },
+      { timeout: 15000 },
+    );
+
+    await page.evaluate(() => {
+      (window as any).mm?.fit();
+    });
+
+    // Wait for D3 transitions to settle
+    await new Promise<void>((r) => setTimeout(r, 600));
+
+    return await page.evaluate(() => {
+      const svg = document.querySelector('svg#mindmap') as SVGSVGElement;
+      const { width, height } = svg.getBoundingClientRect();
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
+      svg.setAttribute('width', String(Math.ceil(width)));
+      svg.setAttribute('height', String(Math.ceil(height)));
+      return svg.outerHTML;
+    });
+  } finally {
+    await page.close();
+  }
 }
 
 export async function commitAndPush(
