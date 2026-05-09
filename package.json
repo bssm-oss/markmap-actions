@@ -1,0 +1,22 @@
+{
+  "name": "markmap-action",
+  "version": "1.0.0",
+  "description": "GitHub Action to convert Markdown files to interactive Markmap HTML visualizations",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist --license licenses.txt --quiet",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/glob": "^0.5.0",
+    "markmap-common": "^0.18.9",
+    "markmap-lib": "^0.18.12",
+    "markmap-render": "^0.18.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.0.0"
+  }
+}
