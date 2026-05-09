@@ -9,6 +9,7 @@ import {
   convertHtmlToSvg,
   launchBrowser,
   buildIndexHtml,
+  rewriteMdLinks,
   commitAndPush,
   type Browser,
 } from './lib';
@@ -78,12 +79,12 @@ async function run(): Promise<void> {
           await fs.mkdir(path.dirname(htmlPath), { recursive: true });
 
           // When format is 'both' and offline:false, re-generate without inlining
-          const htmlContent =
+          const rawHtml =
             format === 'both' && !offline
               ? await convertToHtml(content, { toolbar, offline: false })
               : html;
 
-          await fs.writeFile(htmlPath, htmlContent, 'utf-8');
+          await fs.writeFile(htmlPath, rewriteMdLinks(rawHtml), 'utf-8');
           core.info(`  ${rel} → ${path.relative(workspaceDir, htmlPath)}`);
           succeeded.push(path.relative(workspaceDir, htmlPath));
         }

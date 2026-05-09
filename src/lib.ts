@@ -124,6 +124,14 @@ transition:border-color .15s,background .15s;cursor:pointer;}
   return html.replace('</body>', backBtn + '\n</body>');
 }
 
+export function rewriteMdLinks(html: string): string {
+  // Rewrite relative .md hrefs to .html (skip absolute URLs)
+  return html.replace(
+    /href="((?!https?:\/\/)(?!\/\/)[^"#]*\.md)(#[^"]*)?"/g,
+    (_, p, hash) => `href="${p.replace(/\.md$/, '.html')}${hash ?? ''}"`,
+  );
+}
+
 export function parsePatterns(input: string): string[] {
   return input
     .split(/[\n\s]+/)
