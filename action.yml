@@ -1,0 +1,41 @@
+name: 'Markmap'
+description: 'Convert Markdown files to interactive mindmap HTML files and commit them to the repository'
+author: 'markmap-action'
+
+inputs:
+  files:
+    description: |
+      Glob patterns for Markdown files to convert (space or newline separated).
+      Use * to target all .md files in the repository.
+    required: false
+    default: '**/*.md'
+  output-dir:
+    description: 'Root directory for generated HTML files (mirrors the source file structure)'
+    required: false
+    default: '.markmap'
+  offline:
+    description: 'Inline all assets into the HTML so it works without internet access'
+    required: false
+    default: 'false'
+  toolbar:
+    description: 'Include an interactive toolbar in the generated HTML'
+    required: false
+    default: 'true'
+  commit-message:
+    description: 'Commit message used when pushing the generated files'
+    required: false
+    default: 'chore: update markmap visualizations'
+
+outputs:
+  generated-files:
+    description: 'Newline-separated list of successfully generated HTML file paths'
+  failed-files:
+    description: 'Newline-separated list of source files that failed to convert'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'map'
+  color: 'blue'
