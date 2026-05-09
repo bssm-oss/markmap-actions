@@ -1,26 +1,38 @@
+<div align="right">
+
+🌐 [English](README.md) &nbsp;|&nbsp; **한국어**
+
+</div>
+
 # markmap-actions
 
-> English | **[한국어 README](README.ko.md)**
+> **Markdown 파일을 인터랙티브 마인드맵으로 변환하고 GitHub Pages에 자동으로 배포합니다.**
 
-Markdown 파일을 인터랙티브 마인드맵 HTML로 변환하고 GitHub Pages에 자동 배포합니다.
+[![라이브 데모](https://img.shields.io/badge/▶%20라이브%20데모-markmap--actions-03c75a?style=for-the-badge\&logo=github)](https://bssm-oss.github.io/markmap-actions/)
+[![마인드맵으로 보기](https://img.shields.io/badge/🗺%20이%20README-마인드맵으로%20보기-1a6de0?style=for-the-badge)](https://bssm-oss.github.io/markmap-actions/README.ko.html)
 
-**[이 README를 Markmap으로 보기 →](https://bssm-oss.github.io/markmap-actions/README.html)**
+**워크플로우 파일 하나**를 추가하고 푸시하면, `.md` 파일들이 GitHub Pages에서 탐색 가능한 마인드맵 사이트로 바뀝니다. Pages 수동 설정 불필요. 추가 도구 불필요.
 
-## 개요
+---
 
-- 주요 기능
-  - Markdown → 인터랙티브 마인드맵 HTML 변환
-  - GitHub Pages 자동 활성화 및 배포
-- 특징
-  - 최소한의 설정만으로 동작
-  - Pages가 자동으로 활성화됨
-  - 원본 파일 구조 그대로 미러링
+## ✨ 도입하면 달라지는 것
 
-## 빠른 시작
+| 도입 전 | 도입 후 |
+|---|---|
+| 레포에 산재된 Markdown 파일 | GitHub Pages 인터랙티브 마인드맵 사이트 |
+| GitHub Pages 수동 설정 필요 | 자동으로 Pages 활성화 |
+| 독자가 텍스트 원문을 읽어야 함 | 클릭으로 펼치는 시각적 마인드맵 |
+| 복잡한 CI 설정 | YAML 파일 하나, 복붙으로 끝 |
 
-### 1. 워크플로우 파일 추가
+---
 
-`.github/workflows/markmap.yml` 파일을 생성합니다:
+## 🚀 빠른 시작
+
+**약 2분이면 완료됩니다.**
+
+### 1단계 — 워크플로우 파일 생성
+
+레포에 `.github/workflows/markmap.yml` 파일을 만듭니다:
 
 ```yaml
 name: Markmap
@@ -40,115 +52,77 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bssm-oss/markmap-actions@main
-        with:
-          files: '**/*.md'
 ```
 
-### 2. 푸시
+### 2단계 — 푸시
 
-- `.md` 파일이 포함된 커밋을 푸시합니다
-- Actions 탭에서 진행 상황을 확인합니다
-- `https://<org>.github.io/<repo>/` 에서 결과를 확인합니다
+`.md` 파일(또는 워크플로우 파일 자체)을 포함해서 커밋을 푸시합니다.
 
-## 입력값 (Inputs)
+### 3단계 — 사이트 확인 🎉
 
-### files
+```
+https://<조직명>.github.io/<레포명>/
+```
 
-- 변환할 Markdown 파일의 글로브 패턴
-- 기본값: `**/*.md`
-- 예시
-  - 모든 md 파일: `*`
-  - 특정 디렉토리: `docs/**/*.md`
-  - 다중 패턴
-    - `docs/**/*.md`
-    - `README.md`
+> **GitHub Pages가 자동으로 활성화됩니다.** 레포 설정에서 별도로 켜지 않아도 됩니다.
 
-### output-dir
+---
 
-- 생성된 HTML이 저장될 디렉토리
-- 기본값: `.markmap`
-- 이 디렉토리만 Pages에 업로드됩니다
+## ⚙️ 전체 입력값
 
-### format
+모든 입력값은 **선택 사항**입니다. 기본값만으로도 바로 동작합니다.
 
-- 출력 형식
-- 기본값: `html`
-- 옵션
-  - `html`: 인터랙티브 HTML
-  - `svg`: 정적 SVG 이미지
-  - `both`: HTML과 SVG 모두
+| 입력값 | 기본값 | 설명 |
+|--------|--------|------|
+| `files` | `**/*.md` | 변환할 Markdown 파일 글로브 패턴 (공백 또는 줄바꿈으로 구분) |
+| `output-dir` | `.markmap` | 생성 파일 저장 디렉토리 — 이 폴더만 Pages에 배포됨 |
+| `format` | `html` | 출력 형식: `html` \| `svg` \| `both` |
+| `toolbar` | `true` | 확대/축소/전체화면 툴바 표시 여부 |
+| `offline` | `false` | 에셋 인라인 삽입 — CDN 없는 단일 완성 파일 생성 |
+| `deploy-pages` | `true` | GitHub Pages 자동 배포 |
+| `commit` | `false` | 생성 파일을 레포에 커밋 |
+| `commit-message` | `chore: update markmap visualizations` | `commit: true` 시 커밋 메시지 |
+| `lang` | `en` | 인덱스 페이지 언어: `en` \| `ko` |
 
-### toolbar
+## 📤 출력값
 
-- markmap 툴바 표시 여부
-- 기본값: `true`
-- 툴바 기능
-  - 전체 펼치기 / 접기
-  - 확대 / 축소
-  - 전체 화면
+| 출력값 | 설명 |
+|--------|------|
+| `page-url` | 배포된 GitHub Pages 사이트 전체 URL |
+| `generated-files` | 성공적으로 생성된 파일 경로 목록 (줄바꿈 구분) |
+| `failed-files` | 변환 실패한 파일 경로 목록 (줄바꿈 구분) |
 
-### offline
+### 이후 스텝에서 출력값 사용하기
 
-- 모든 에셋을 HTML에 인라인으로 삽입
-- 기본값: `false`
-- CDN 의존 없이 단일 자급자족 파일로 생성
+```yaml
+- id: markmap
+  uses: bssm-oss/markmap-actions@main
 
-### deploy-pages
+- run: echo "배포 완료: ${{ steps.markmap.outputs.page-url }}"
+```
 
-- 생성된 HTML을 GitHub Pages에 자동 배포
-- 기본값: `true`
-- 필요한 권한
-  - `pages: write`
-  - `id-token: write`
+---
 
-### commit
+## 🗂️ 파일 경로 매핑
 
-- 생성된 파일을 레포지토리에 커밋
-- 기본값: `false`
-- `deploy-pages: false`와 함께 사용하여 배포 대신 커밋
+`.markmap/` 아래에 레포 구조가 그대로 미러링됩니다:
 
-### commit-message
+```
+README.md              →  .markmap/README.html
+docs/guide.md          →  .markmap/docs/guide.html
+docs/api/intro.md      →  .markmap/docs/api/intro.html
+```
 
-- 생성된 파일의 커밋 메시지
-- 기본값: `chore: update markmap visualizations`
+`.markmap/index.html`에는 생성된 파일들을 탐색할 수 있는 파일 브라우저가 자동 생성됩니다.
 
-## 출력값 (Outputs)
+---
 
-### page-url
+## 📖 사용 예시 모음
 
-- 배포된 GitHub Pages 사이트 URL
-- 예시: `https://bssm-oss.github.io/markmap-actions-test/`
-
-### generated-files
-
-- 성공적으로 생성된 파일 경로 목록 (줄바꿈으로 구분)
-
-### failed-files
-
-- 변환에 실패한 소스 파일 경로 목록 (줄바꿈으로 구분)
-
-## 파일 경로 매핑
-
-### 규칙
-
-- 원본 경로가 `.markmap/` 아래에 그대로 미러링됨
-- 확장자가 `.md`에서 `.html`로 변경됨
-
-### 예시
-
-- `README.md` → `.markmap/README.html`
-- `docs/guide.md` → `.markmap/docs/guide.html`
-- `docs/api/intro.md` → `.markmap/docs/api/intro.html`
-
-## 고급 예시
-
-### Pages 없이 레포에 커밋
+### 전체 Markdown 변환 (기본)
 
 ```yaml
 - uses: bssm-oss/markmap-actions@main
-  with:
-    deploy-pages: 'false'
-    commit: 'true'
 ```
 
 ### 특정 파일만 변환
@@ -161,39 +135,85 @@ jobs:
       README.md
 ```
 
-### SVG와 HTML 모두 생성 후 레포에 커밋
+### Pages 배포 없이 레포에 커밋
+
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-pages: 'false'
+    commit: 'true'
+```
+
+### HTML과 SVG 동시 생성
 
 ```yaml
 - uses: bssm-oss/markmap-actions@main
   with:
     format: 'both'
-    deploy-pages: 'false'
     commit: 'true'
+    deploy-pages: 'false'
 ```
 
-## 권한 설명
+### 오프라인 모드 (CDN 없는 완전 자급자족 파일)
 
-### pages: write
+사내망이나 단일 HTML 파일을 공유할 때 유용합니다.
 
-- GITHUB_TOKEN에 Pages 배포 권한을 부여
-- 사용자 계정과 무관하게 워크플로우 YAML에서 선언
-- 자동으로 발급되므로 별도 설정 불필요
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    offline: 'true'
+```
 
-### id-token: write
+### 한국어 인덱스 페이지
 
-- `actions/deploy-pages`에서 사용하는 OIDC 인증에 필요
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    lang: 'ko'
+```
 
-## 동작 원리
+---
 
-### 변환 과정
+## 🔐 권한 설명
 
-- `markmap-lib`이 Markdown을 파싱하여 트리 구조로 변환
-- `markmap-render`가 D3.js 기반 HTML을 생성
-- SVG의 경우: 헤드리스 Chrome이 렌더링 후 SVG 요소를 추출
+워크플로우 YAML에 선언하면 되며, GitHub 레포 설정을 별도로 변경할 필요가 없습니다.
 
-### Pages 배포 과정
+```yaml
+permissions:
+  contents: read   # 레포 파일 읽기
+  pages: write     # GitHub Pages 배포
+  id-token: write  # actions/deploy-pages OIDC 인증
+```
 
-- GitHub API로 Pages 활성화 여부 확인
-- 비활성화 상태인 경우 자동으로 Pages를 활성화
-- `.markmap/` 디렉토리를 Pages 아티팩트로 업로드
-- `actions/deploy-pages`로 아티팩트를 배포
+이 권한은 워크플로우 실행 단위로만 적용되며 GitHub이 자동으로 발급합니다.
+
+---
+
+## 🔍 동작 원리
+
+```
+.md 파일들
+     │
+     ▼
+markmap-lib          Markdown → 트리 구조 파싱
+     │
+     ▼
+markmap-render       D3.js 인터랙티브 HTML 생성
+     │
+     ▼
+.markmap/            출력 디렉토리 (레포 구조 미러링)
+  ├── index.html     자동 생성 파일 브라우저
+  ├── README.html
+  └── docs/
+       └── guide.html
+     │
+     ▼
+GitHub Pages API     미활성화 상태면 자동으로 Pages 활성화
+     │
+     ▼
+actions/deploy-pages .markmap/을 Pages 사이트로 배포
+```
+
+> **SVG 출력:** 헤드리스 Chrome이 인터랙티브 HTML을 렌더링한 뒤 SVG 요소를 추출합니다. 별도의 서버 사이드 SVG 라이브러리가 필요 없습니다.
+
+> **링크 재작성:** Markdown 내부의 상대 `.md` 링크는 자동으로 `.html`로 변환됩니다. 변환 대상이 아닌 파일로의 링크는 제거되고 텍스트만 남습니다.
