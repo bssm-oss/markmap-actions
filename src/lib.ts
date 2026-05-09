@@ -188,6 +188,40 @@ export async function convertHtmlToSvg(html: string, browser: Browser): Promise<
   }
 }
 
+export function buildIndexHtml(files: string[]): string {
+  const items = files
+    .slice()
+    .sort()
+    .map((f) => {
+      const label = f.replace(/\.html$/, '.md');
+      return `      <li><a href="${f}">${label}</a></li>`;
+    })
+    .join('\n');
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markmap</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 60px auto; padding: 0 24px; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 8px 0; }
+    a { color: #0969da; text-decoration: none; font-size: 1rem; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Markmap</h1>
+  <ul>
+${items}
+  </ul>
+</body>
+</html>`;
+}
+
 export async function commitAndPush(
   outputDir: string,
   workspaceDir: string,

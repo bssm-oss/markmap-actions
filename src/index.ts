@@ -8,6 +8,7 @@ import {
   convertToHtml,
   convertHtmlToSvg,
   launchBrowser,
+  buildIndexHtml,
   commitAndPush,
   type Browser,
 } from './lib';
@@ -102,6 +103,15 @@ async function run(): Promise<void> {
     }
   } finally {
     await browser?.close();
+  }
+
+  // Write index.html linking all generated HTML files
+  const htmlFiles = succeeded.filter((f) => f.endsWith('.html'));
+  if (htmlFiles.length > 0) {
+    const indexPath = path.join(workspaceDir, outputDir, 'index.html');
+    const relPaths = htmlFiles.map((f) => path.relative(path.join(workspaceDir, outputDir), path.join(workspaceDir, f)));
+    await fs.writeFile(indexPath, buildIndexHtml(relPaths), 'utf-8');
+    core.info(`  → ${path.join(outputDir, 'index.html')} (index)`);
   }
 
   core.setOutput('generated-files', succeeded.join('\n'));
