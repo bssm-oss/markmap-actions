@@ -93,11 +93,31 @@ export async function convertToHtml(
     assets = await inlineAssets(assets);
   }
 
-  return fillTemplate(root, assets, {
+  const html = fillTemplate(root, assets, {
     baseJs: [],
     jsonOptions: (frontmatter as any)?.markmap,
     urlBuilder: transformer.urlBuilder,
   });
+
+  const backBtn = `<style>
+#mm-back{position:fixed;top:14px;left:14px;z-index:9999;
+display:flex;align-items:center;gap:6px;
+padding:6px 12px 6px 8px;border-radius:8px;
+background:rgba(13,17,23,0.82);backdrop-filter:blur(10px);
+border:1px solid #30363d;color:#e6edf3;
+font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+font-size:13px;font-weight:500;text-decoration:none;
+transition:border-color .15s,background .15s;cursor:pointer;}
+#mm-back:hover{border-color:#03c75a;background:rgba(3,199,90,0.12);color:#03c75a;}
+#mm-back svg{flex-shrink:0;transition:transform .15s;}
+#mm-back:hover svg{transform:translateX(-2px);}
+</style>
+<a id="mm-back" href="javascript:history.back()">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+<polyline points="15 18 9 12 15 6"/>
+</svg>뒤로</a>`;
+
+  return html.replace('</body>', backBtn + '\n</body>');
 }
 
 export function parsePatterns(input: string): string[] {
