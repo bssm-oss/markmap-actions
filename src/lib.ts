@@ -124,19 +124,41 @@ transition:border-color .15s,background .15s;cursor:pointer;}
   return html.replace('</body>', backBtn + '\n</body>');
 }
 
-export function rewriteMdLinks(html: string): string {
-  const rewrite = (p: string, hash?: string) =>
-    `${p.replace(/\.md$/, '.html')}${hash ?? ''}`;
+export function rewriteMdLinks(
+  html: string,
+  convertedFiles: Set<string>,
+  sourceFilePath: string,
+): string {
+  const srcDir = path.dirname(sourceFilePath);
 
-  // Plain HTML: href="path.md"
+  // Returns new href (.html) if target is a converted file, null if not
+  function resolve(href: string): string | null {
+    const hi = href.indexOf('#');
+    const mdPath = hi >= 0 ? href.slice(0, hi) : href;
+    const hash = hi >= 0 ? href.slice(hi) : '';
+    const abs = path.resolve(srcDir, mdPath);
+    if (convertedFiles.has(abs)) {
+      return mdPath.replace(/\.md$/, '.html') + hash;
+    }
+    return null;
+  }
+
+  // Pass 1: plain HTML  <a href="path.md">content</a>
   const pass1 = html.replace(
-    /href="((?!https?:\/\/)(?!\/\/)[^"#]*\.md)(#[^"]*)?"/g,
-    (_, p, hash) => `href="${rewrite(p, hash)}"`,
+    /<a\s[^>]*href="((?!https?:\/\/)(?!\/\/)[^"]*\.md[^"]*)"[^>]*>([\s\S]*?)<\/a>/g,
+    (_, href, content) => {
+      const next = resolve(href);
+      return next !== null ? `<a href="${next}">${content}</a>` : content;
+    },
   );
-  // JSON-serialized inside <script>: href=\"path.md\"
+
+  // Pass 2: JSON-serialised  <a href=\"path.md\">content</a>
   return pass1.replace(
-    /href=\\"((?!https?:\/\/)(?!\/\/)[^"\\#]*\.md)(#[^"\\]*)?\\"/g,
-    (_, p, hash) => `href=\\"${rewrite(p, hash)}\\"`,
+    /<a href=\\"((?!https?:\/\/)(?!\/\/)[^"\\]*\.md[^"\\]*)\\"[^>]*>([\s\S]*?)<\/a>/g,
+    (_, href, content) => {
+      const next = resolve(href);
+      return next !== null ? `<a href=\\"${next}\\">${content}</a>` : content;
+    },
   );
 }
 

@@ -58,6 +58,7 @@ async function run(): Promise<void> {
     browser = await launchBrowser();
   }
 
+  const convertedFilesSet = new Set(files);
   const succeeded: string[] = [];
   const failed: string[] = [];
 
@@ -84,7 +85,7 @@ async function run(): Promise<void> {
               ? await convertToHtml(content, { toolbar, offline: false })
               : html;
 
-          await fs.writeFile(htmlPath, rewriteMdLinks(rawHtml), 'utf-8');
+          await fs.writeFile(htmlPath, rewriteMdLinks(rawHtml, convertedFilesSet, filePath), 'utf-8');
           core.info(`  ${rel} → ${path.relative(workspaceDir, htmlPath)}`);
           succeeded.push(path.relative(workspaceDir, htmlPath));
         }
