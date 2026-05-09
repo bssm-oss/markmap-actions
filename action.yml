@@ -1,5 +1,5 @@
 name: 'Markmap'
-description: 'Convert Markdown files to interactive mindmap HTML files and commit them to the repository'
+description: 'Convert Markdown files to interactive mindmap HTML and deploy to GitHub Pages'
 author: 'markmap-action'
 
 inputs:
@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '**/*.md'
   output-dir:
-    description: 'Root directory for generated HTML files (mirrors the source file structure)'
+    description: 'Directory for generated HTML files'
     required: false
     default: '.markmap'
   offline:
@@ -22,27 +22,88 @@ inputs:
     required: false
     default: 'true'
   format:
-    description: 'Output format: svg | html | both'
+    description: 'Output format: html | svg | both'
     required: false
-    default: 'svg'
+    default: 'html'
   commit:
-    description: 'Commit and push generated files back to the repository'
+    description: 'Commit generated files back to the repository'
     required: false
-    default: 'true'
+    default: 'false'
   commit-message:
     description: 'Commit message used when pushing the generated files'
     required: false
     default: 'chore: update markmap visualizations'
+  deploy-pages:
+    description: |
+      Deploy generated HTML to GitHub Pages automatically.
+      Requires the following job-level permissions:
+        pages: write
+        id-token: write
+    required: false
+    default: 'true'
 
 outputs:
   generated-files:
-    description: 'Newline-separated list of successfully generated HTML file paths'
+    description: 'Newline-separated list of successfully generated file paths'
+    value: ${{ steps.generate.outputs.generated-files }}
   failed-files:
     description: 'Newline-separated list of source files that failed to convert'
+    value: ${{ steps.generate.outputs.failed-files }}
+  page-url:
+    description: 'URL of the deployed GitHub Pages site'
+    value: ${{ steps.deploy.outputs.page_url }}
 
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
+  using: composite
+  steps:
+    - id: generate
+      name: Generate markmap HTML
+      run: node "${{ github.action_path }}/dist/index.js"
+      shell: bash
+      env:
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_OUTPUT-DIR: ${{ inputs.output-dir }}
+        INPUT_OFFLINE: ${{ inputs.offline }}
+        INPUT_TOOLBAR: ${{ inputs.toolbar }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_COMMIT-MESSAGE: ${{ inputs.commit-message }}
+
+    - name: Enable GitHub Pages if not already active
+      if: ${{ inputs.deploy-pages == 'true' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: Bearer $GH_TOKEN" \
+          "https://api.github.com/repos/$GH_REPO/pages")
+        if [ "$HTTP" = "404" ]; then
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"build_type":"workflow"}' \
+            "https://api.github.com/repos/$GH_REPO/pages")
+          if [ "$CODE" = "201" ]; then
+            echo "GitHub Pages enabled."
+          else
+            echo "::warning::Failed to enable GitHub Pages (HTTP $CODE). Ensure pages: write permission is set."
+          fi
+        else
+          echo "GitHub Pages already configured."
+        fi
+      shell: bash
+
+    - name: Upload Pages artifact
+      if: ${{ inputs.deploy-pages == 'true' }}
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ${{ inputs.output-dir }}
+
+    - id: deploy
+      name: Deploy to GitHub Pages
+      if: ${{ inputs.deploy-pages == 'true' }}
+      uses: actions/deploy-pages@v4
 
 branding:
   icon: 'map'
