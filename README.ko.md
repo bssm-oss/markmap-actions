@@ -170,6 +170,8 @@ docs/api/intro.md      →  .markmap/docs/api/intro.html
 
 첫 실행 시 프로젝트가 자동으로 생성됩니다. 사이트 URL: `https://<프로젝트명>.pages.dev`
 
+> **참고:** Cloudflare 배포 시 액션이 자동으로 Node.js 22를 설치합니다. Cloudflare CLI(`wrangler`)가 Node.js 22 이상을 요구하는데, GitHub 기본 러너는 Node.js 20을 사용하기 때문입니다.
+
 ### Pages 배포 없이 레포에 커밋
 
 ```yaml

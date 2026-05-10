@@ -170,6 +170,8 @@ docs/api/intro.md      →  .markmap/docs/api/intro.html
 
 The Pages project is created automatically on first run. Site URL: `https://<project>.pages.dev`
 
+> **Note:** The action automatically installs Node.js 22 before running wrangler. This is required because `wrangler` (the Cloudflare CLI) requires Node.js 22+, while GitHub-hosted runners default to Node.js 20.
+
 ### Commit to repo (no external hosting needed)
 
 ```yaml

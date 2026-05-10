@@ -149,6 +149,12 @@ runs:
 
     # ── Cloudflare Pages ────────────────────────────────────────────────────
 
+    - name: Setup Node.js 22 for wrangler
+      if: ${{ inputs.deploy-target == 'cloudflare' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
     - id: deploy-cf
       name: Deploy to Cloudflare Pages
       if: ${{ inputs.deploy-target == 'cloudflare' }}
