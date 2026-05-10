@@ -189,7 +189,7 @@ export async function convertToHtml(
 /* ── TOC panel ── */
 #mm-toc{
   position:fixed;top:60px;right:16px;z-index:9998;
-  width:220px;max-height:calc(100vh - 80px);overflow-y:auto;
+  width:min(220px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow-y:auto;
   background:var(--rv-toc-bg,rgba(255,255,255,0.95));
   border:1px solid var(--rv-border,#dee2e6);
   border-radius:10px;padding:10px 0;
@@ -200,6 +200,9 @@ export async function convertToHtml(
   transform:translateY(-6px);
   transition:opacity .22s ease,transform .22s ease;
   box-shadow:0 4px 20px rgba(0,0,0,0.12);
+}
+@media(max-width:600px){
+  #mm-toc{max-height:38vh;top:56px;right:12px;left:12px;width:auto;border-radius:12px;}
 }
 #mm-toc.visible{opacity:1;pointer-events:auto;transform:translateY(0);}
 #mm-toc-title{
