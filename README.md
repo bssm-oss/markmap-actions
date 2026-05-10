@@ -2,17 +2,16 @@
 
 🌐 **English** &nbsp;|&nbsp; [한국어](README.ko.md)
 
-
 </div>
 
 # markmap-actions
 
-> **Turn your Markdown files into interactive mindmaps, deployed to GitHub Pages automatically.**
+> **Turn your Markdown files into interactive mindmaps, deployed to GitHub Pages or Cloudflare Pages automatically.**
 
-[![Live Demo](https://img.shields.io/badge/▶%20Live%20Demo-markmap--actions-03c75a?style=for-the-badge\&logo=github)](https://bssm-oss.github.io/markmap-actions/)
-[![View as Mindmap](https://img.shields.io/badge/🗺%20This%20README-as%20Mindmap-1a6de0?style=for-the-badge)](https://bssm-oss.github.io/markmap-actions/README.html)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-markmap--actions-03c75a?style=for-the-badge&logo=github)](https://bssm-oss.github.io/markmap-actions/)
+[![View as Mindmap](https://img.shields.io/badge/This%20README-as%20Mindmap-1a6de0?style=for-the-badge)](https://bssm-oss.github.io/markmap-actions/README.html)
 
-Add **one workflow file**, push — and your `.md` files become a browsable, zoomable mindmap site on GitHub Pages. No manual Pages setup. No extra tooling.
+Add **one workflow file**, push — and your `.md` files become a browsable mindmap site. No manual Pages setup. No extra tooling.
 
 ---
 
@@ -20,10 +19,23 @@ Add **one workflow file**, push — and your `.md` files become a browsable, zoo
 
 | Without markmap-actions | With markmap-actions |
 |---|---|
-| Markdown files scattered in your repo | Interactive mindmap website on GitHub Pages |
+| Markdown files scattered in your repo | Interactive mindmap website, auto-deployed |
 | Manual GitHub Pages setup required | Pages enabled automatically |
 | Readers must read raw text | Click-to-expand visual mindmaps |
 | Complex CI configuration | One YAML file, copy-paste ready |
+
+### Generated site features
+
+**Index page** (file browser)
+- Folder-tree sidebar + breadcrumb navigation
+- Dark / light theme toggle
+- English / Korean language toggle
+- Responsive layout
+
+**Each mindmap page**
+- **Graph view** — interactive D3.js mindmap (zoom, pan, expand/collapse)
+- **Read view** — clean markdown reading mode, toggle with one click
+- Back button to return to the index
 
 ---
 
@@ -76,10 +88,10 @@ Every input is **optional** — the defaults work out of the box.
 | Input | Default | Description |
 |-------|---------|-------------|
 | `files` | `**/*.md` | Glob patterns for Markdown files to convert (space or newline separated) |
-| `output-dir` | `.markmap` | Directory for generated files — only this folder is deployed to Pages |
+| `output-dir` | `.markmap` | Directory for generated files — only this folder is deployed |
 | `format` | `html` | Output format: `html` \| `svg` \| `both` |
 | `toolbar` | `true` | Show the zoom / expand / fullscreen toolbar in the mindmap |
-| `offline` | `false` | Bundle all assets inline — produces a single self-contained file (no CDN) |
+| `offline` | `false` | Bundle all assets inline — single self-contained file, no CDN |
 | `deploy-pages` | `true` | Deploy to GitHub Pages automatically |
 | `deploy-target` | `` | Override deployment target: `github-pages` \| `cloudflare` |
 | `cloudflare-account-id` | `` | Cloudflare account ID (required when `deploy-target: cloudflare`) |
@@ -87,13 +99,13 @@ Every input is **optional** — the defaults work out of the box.
 | `cloudflare-project-name` | `` | Cloudflare Pages project name (defaults to repo name) |
 | `commit` | `false` | Commit generated files back to the repository |
 | `commit-message` | `chore: update markmap visualizations` | Commit message when `commit: true` |
-| `lang` | `en` | Language of the index page: `en` \| `ko` |
+| `lang` | `en` | Default language of the index page: `en` \| `ko` |
 
 ## 📤 Outputs
 
 | Output | Description |
 |--------|-------------|
-| `page-url` | Full URL of the deployed GitHub Pages site |
+| `page-url` | URL of the deployed site (GitHub Pages or Cloudflare Pages) |
 | `generated-files` | Newline-separated list of successfully generated file paths |
 | `failed-files` | Newline-separated list of files that failed to convert |
 
@@ -118,7 +130,9 @@ docs/guide.md          →  .markmap/docs/guide.html
 docs/api/intro.md      →  .markmap/docs/api/intro.html
 ```
 
-An `index.html` is automatically generated at `.markmap/index.html` — it shows a file-browser style listing of all generated files.
+`index.html` is auto-generated at `.markmap/index.html` as a file-browser listing of all generated files.
+
+**Link rewriting:** relative `.md` links in your Markdown are automatically rewritten to `.html`. Links to files not in the converted set are stripped — text is preserved, only the anchor is removed.
 
 ---
 
@@ -140,7 +154,23 @@ An `index.html` is automatically generated at `.markmap/index.html` — it shows
       README.md
 ```
 
-### Commit to repo instead of deploying to Pages
+### Deploy to Cloudflare Pages (works with private repos, free)
+
+> **Setup:** [Create a Cloudflare API token](https://dash.cloudflare.com/profile/api-tokens) with **Cloudflare Pages: Edit** permission. Add `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` to your repo Settings → Secrets.
+
+```yaml
+# No pages/id-token permissions needed
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-target: 'cloudflare'
+    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    # cloudflare-project-name: 'my-docs'  # optional, defaults to repo name
+```
+
+The Pages project is created automatically on first run. Site URL: `https://<project>.pages.dev`
+
+### Commit to repo (no external hosting needed)
 
 ```yaml
 - uses: bssm-oss/markmap-actions@main
@@ -155,30 +185,11 @@ An `index.html` is automatically generated at `.markmap/index.html` — it shows
 - uses: bssm-oss/markmap-actions@main
   with:
     format: 'both'
-    commit: 'true'
     deploy-pages: 'false'
+    commit: 'true'
 ```
-
-### Deploy to Cloudflare Pages (private repo friendly, free)
-
-> Required: [create a Cloudflare API token](https://dash.cloudflare.com/profile/api-tokens) with **Cloudflare Pages: Edit** permission, then add it to your repo Secrets.
-
-```yaml
-- uses: bssm-oss/markmap-actions@main
-  with:
-    deploy-target: 'cloudflare'
-    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    # cloudflare-project-name: 'my-docs'  # optional, defaults to repo name
-```
-
-The Pages project is created automatically on first run. Your site will be at `https://<project>.pages.dev`.
-
-No special workflow permissions needed — remove `pages: write` and `id-token: write` when using Cloudflare.
 
 ### Offline mode (no CDN, fully self-contained)
-
-Useful for private networks or when you want to send a single HTML file.
 
 ```yaml
 - uses: bssm-oss/markmap-actions@main
@@ -198,7 +209,7 @@ Useful for private networks or when you want to send a single HTML file.
 
 ## 🔐 Permissions
 
-Declared in your workflow YAML — no manual settings in GitHub are required.
+### GitHub Pages (default)
 
 ```yaml
 permissions:
@@ -207,7 +218,16 @@ permissions:
   id-token: write  # OIDC auth required by actions/deploy-pages
 ```
 
-These permissions apply only to the workflow run and are issued automatically by GitHub.
+> **Private repos:** GitHub Pages requires a paid plan (Pro/Team/Enterprise) for private repositories. If Pages cannot be enabled, the action skips deployment and prints a warning with alternatives.
+
+### Cloudflare Pages
+
+```yaml
+permissions:
+  contents: read   # Only this is needed
+```
+
+`pages: write` and `id-token: write` are **not required** for Cloudflare deployment.
 
 ---
 
@@ -222,20 +242,22 @@ markmap-lib          Parses Markdown → tree structure
      ▼
 markmap-render       Generates D3.js interactive HTML
      │
+     ├── Graph/Read toggle injected into each page
+     ├── Back button injected into each page
+     └── Relative .md links rewritten to .html
+     │
      ▼
 .markmap/            Output directory (mirrors repo structure)
-  ├── index.html     Auto-generated file browser
+  ├── index.html     File-browser with dark/light theme, EN/KO toggle
   ├── README.html
   └── docs/
        └── guide.html
      │
-     ▼
-GitHub Pages API     Enables Pages if not already active
+     ├─── GitHub Pages path ──────────────────────────────────
+     │    GitHub API enables Pages → upload artifact → deploy
      │
-     ▼
-actions/deploy-pages Deploys .markmap/ as the Pages site
+     └─── Cloudflare Pages path ─────────────────────────────
+          wrangler deploys .markmap/ → https://<project>.pages.dev
 ```
 
-> **SVG output:** headless Chrome renders the interactive HTML and extracts the SVG element — no server-side SVG library needed.
-
-> **Link rewriting:** relative `.md` links inside your Markdown are automatically rewritten to `.html`. Links to files outside the converted set are stripped (text is preserved).
+> **SVG output:** headless Chrome renders the interactive HTML and extracts the SVG element.
