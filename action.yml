@@ -74,7 +74,8 @@ runs:
         INPUT_COMMIT-MESSAGE: ${{ inputs.commit-message }}
         INPUT_LANG: ${{ inputs.lang }}
 
-    - name: Enable GitHub Pages if not already active
+    - id: enable-pages
+      name: Enable GitHub Pages if not already active
       if: ${{ inputs.deploy-pages == 'true' }}
       env:
         GH_TOKEN: ${{ github.token }}
@@ -83,31 +84,46 @@ runs:
         HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
           -H "Authorization: Bearer $GH_TOKEN" \
           "https://api.github.com/repos/$GH_REPO/pages")
-        if [ "$HTTP" = "404" ]; then
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+
+        if [ "$HTTP" = "200" ] || [ "$HTTP" = "204" ]; then
+          echo "GitHub Pages already configured."
+          echo "pages_ready=true" >> $GITHUB_OUTPUT
+
+        elif [ "$HTTP" = "404" ]; then
+          BODY=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"build_type":"workflow"}' \
             "https://api.github.com/repos/$GH_REPO/pages")
+          CODE=$(echo "$BODY" | tail -1)
+
           if [ "$CODE" = "201" ]; then
             echo "GitHub Pages enabled."
+            echo "pages_ready=true" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Failed to enable GitHub Pages (HTTP $CODE). Ensure pages: write permission is set."
+            MSG=$(echo "$BODY" | head -1)
+            echo "::warning::GitHub Pages could not be enabled (HTTP $CODE)."
+            echo "::warning::This usually means the repository is private and the plan does not support Pages."
+            echo "::warning::Use deploy-pages: 'false' and commit: 'true' to commit generated files to the repo instead."
+            echo "::warning::Details: $MSG"
+            echo "pages_ready=false" >> $GITHUB_OUTPUT
           fi
+
         else
-          echo "GitHub Pages already configured."
+          echo "::warning::Unexpected response from Pages API (HTTP $HTTP). Skipping deployment."
+          echo "pages_ready=false" >> $GITHUB_OUTPUT
         fi
       shell: bash
 
     - name: Upload Pages artifact
-      if: ${{ inputs.deploy-pages == 'true' }}
+      if: ${{ inputs.deploy-pages == 'true' && steps.enable-pages.outputs.pages_ready == 'true' }}
       uses: actions/upload-pages-artifact@v3
       with:
         path: ${{ inputs.output-dir }}
 
     - id: deploy
       name: Deploy to GitHub Pages
-      if: ${{ inputs.deploy-pages == 'true' }}
+      if: ${{ inputs.deploy-pages == 'true' && steps.enable-pages.outputs.pages_ready == 'true' }}
       uses: actions/deploy-pages@v4
 
 branding:
