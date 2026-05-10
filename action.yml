@@ -1,4 +1,4 @@
-name: 'Markmap'
+name: 'Markmap-Actions'
 description: 'Convert Markdown files to interactive mindmap HTML and deploy to GitHub Pages'
 author: 'markmap-action'
 
