@@ -97,6 +97,7 @@ https://<조직명>.github.io/<레포명>/
 | `cloudflare-account-id` | `` | Cloudflare 계정 ID (`deploy-target: cloudflare` 시 필요) |
 | `cloudflare-api-token` | `` | Pages:Edit 권한의 Cloudflare API 토큰 |
 | `cloudflare-project-name` | `` | Cloudflare Pages 프로젝트 이름 (기본값: 레포 이름) |
+| `cloudflare-access-policy` | `` | Cloudflare Access 인가 정책 (YAML 목록) — 배포된 사이트 접근자를 제한 |
 | `commit` | `false` | 생성 파일을 레포에 커밋 |
 | `commit-message` | `chore: update markmap visualizations` | `commit: true` 시 커밋 메시지 |
 | `lang` | `en` | 인덱스 페이지 기본 언어: `en` \| `ko` |
@@ -171,6 +172,30 @@ docs/api/intro.md      →  .markmap/docs/api/intro.html
 첫 실행 시 프로젝트가 자동으로 생성됩니다. 사이트 URL: `https://<프로젝트명>.pages.dev`
 
 > **참고:** Cloudflare 배포 시 액션이 자동으로 Node.js 22를 설치합니다. Cloudflare CLI(`wrangler`)가 Node.js 22 이상을 요구하는데, GitHub 기본 러너는 Node.js 20을 사용하기 때문입니다.
+
+### Cloudflare Access로 접근 제한 (비공개 문서)
+
+특정 사용자만 사이트를 볼 수 있도록 제한합니다 — GitHub 조직원, 특정 팀, 이메일 목록 등.
+
+> **1회 수동 설정 필요:**
+> 1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Settings → Authentication → **GitHub** IdP 추가
+> 2. Cloudflare API 토큰에 `Zero Trust: Edit` 권한 추가 (`Pages: Edit`에 더하여)
+
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-target: 'cloudflare'
+    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    cloudflare-access-policy: |
+      - github-org: my-org               # 조직 전체 멤버
+      - github-team: my-org/developers   # 특정 팀만
+      - email-domain: company.com        # 회사 이메일 도메인 전체
+      - email: contractor@gmail.com      # 특정 외부 이메일
+```
+
+규칙은 OR로 결합됩니다 — **하나라도** 해당하면 접근이 허용됩니다.
+Access Application은 첫 실행 시 자동 생성되고, 배포할 때마다 정책이 자동으로 교체됩니다.
 
 ### Pages 배포 없이 레포에 커밋
 

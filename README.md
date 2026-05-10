@@ -97,6 +97,7 @@ Every input is **optional** — the defaults work out of the box.
 | `cloudflare-account-id` | `` | Cloudflare account ID (required when `deploy-target: cloudflare`) |
 | `cloudflare-api-token` | `` | Cloudflare API token with Pages:Edit permission |
 | `cloudflare-project-name` | `` | Cloudflare Pages project name (defaults to repo name) |
+| `cloudflare-access-policy` | `` | Cloudflare Access policy (YAML list) — restricts who can view the deployed site |
 | `commit` | `false` | Commit generated files back to the repository |
 | `commit-message` | `chore: update markmap visualizations` | Commit message when `commit: true` |
 | `lang` | `en` | Default language of the index page: `en` \| `ko` |
@@ -171,6 +172,30 @@ docs/api/intro.md      →  .markmap/docs/api/intro.html
 The Pages project is created automatically on first run. Site URL: `https://<project>.pages.dev`
 
 > **Note:** The action automatically installs Node.js 22 before running wrangler. This is required because `wrangler` (the Cloudflare CLI) requires Node.js 22+, while GitHub-hosted runners default to Node.js 20.
+
+### Restrict access with Cloudflare Access (private docs)
+
+Protect your site so only specific users can view it — GitHub org members, a specific team, or an email list.
+
+> **One-time setup required:**
+> 1. In [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Settings → Authentication, add **GitHub** as an identity provider
+> 2. Add `Zero Trust: Edit` permission to your Cloudflare API token (in addition to `Pages: Edit`)
+
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-target: 'cloudflare'
+    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    cloudflare-access-policy: |
+      - github-org: my-org               # all org members
+      - github-team: my-org/developers   # specific team only
+      - email-domain: company.com        # anyone with a company email
+      - email: contractor@gmail.com      # a specific external address
+```
+
+Rules are combined with OR — a user matching **any** rule is granted access.
+The Access Application is created automatically on first run and the policy is replaced on every deploy.
 
 ### Commit to repo (no external hosting needed)
 

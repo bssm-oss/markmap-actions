@@ -60,6 +60,18 @@ inputs:
     description: 'Cloudflare Pages project name (defaults to repository name)'
     required: false
     default: ''
+  cloudflare-access-policy:
+    description: |
+      Cloudflare Access policy (YAML list). Restricts who can view the deployed site.
+      Supported rule types:
+        - github-org: <org>           Members of a GitHub organization
+        - github-team: <org>/<team>   Members of a specific GitHub team
+        - email-domain: <domain>      Anyone with an email on this domain
+        - email: <address>            A specific email address
+      Requires: (1) Zero Trust: Edit permission on the API token
+                (2) GitHub identity provider configured in Cloudflare Zero Trust dashboard
+    required: false
+    default: ''
   lang:
     description: 'Default language for the index page (en or ko)'
     required: false
@@ -178,6 +190,135 @@ runs:
           echo "cf_url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
         fi
+
+    - id: setup-cf-access
+      name: Configure Cloudflare Access policy
+      if: ${{ inputs.deploy-target == 'cloudflare' && inputs.cloudflare-access-policy != '' }}
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CF_PROJECT: ${{ inputs.cloudflare-project-name }}
+        CF_ACCESS_POLICY: ${{ inputs.cloudflare-access-policy }}
+      run: |
+        node - << 'JSEOF'
+        const https = require('https');
+
+        const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+        const apiToken  = process.env.CLOUDFLARE_API_TOKEN;
+        const repo      = process.env.GITHUB_REPOSITORY || '';
+        const project   = process.env.CF_PROJECT || repo.split('/').pop() || 'markmap';
+        const domain    = `${project}.pages.dev`;
+        const policyRaw = process.env.CF_ACCESS_POLICY || '';
+
+        function cfApi(method, path, body) {
+          return new Promise((resolve, reject) => {
+            const data = body ? JSON.stringify(body) : null;
+            const req = https.request({
+              hostname: 'api.cloudflare.com',
+              path: `/client/v4${path}`,
+              method,
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json',
+                ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
+              },
+            }, res => {
+              let raw = '';
+              res.on('data', c => raw += c);
+              res.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve(raw); } });
+            });
+            req.on('error', reject);
+            if (data) req.write(data);
+            req.end();
+          });
+        }
+
+        function parsePolicy(text) {
+          const includes = [];
+          for (const line of text.split('\n')) {
+            const m = line.trim().match(/^-\s+(\S+):\s+(.+)$/);
+            if (!m) continue;
+            const [, type, value] = m;
+            const v = value.trim();
+            if (type === 'github-org') {
+              includes.push({ 'github-organization': { name: v } });
+            } else if (type === 'github-team') {
+              const slash = v.indexOf('/');
+              const org  = slash >= 0 ? v.slice(0, slash) : v;
+              const team = slash >= 0 ? v.slice(slash + 1) : '';
+              includes.push({ 'github-organization': { name: org, ...(team ? { team } : {}) } });
+            } else if (type === 'email-domain') {
+              includes.push({ email_domain: { domain: v } });
+            } else if (type === 'email') {
+              includes.push({ email: { email: v } });
+            } else {
+              console.warn(`Unknown policy rule type: "${type}" — skipping`);
+            }
+          }
+          return includes;
+        }
+
+        async function main() {
+          const includes = parsePolicy(policyRaw);
+          if (includes.length === 0) {
+            console.log('No valid access policy rules parsed. Skipping Cloudflare Access setup.');
+            return;
+          }
+          console.log(`Applying Cloudflare Access policy to https://${domain}`);
+          console.log('Rules:', JSON.stringify(includes, null, 2));
+
+          // Find or create Access Application
+          const appsRes = await cfApi('GET', `/accounts/${accountId}/access/apps`);
+          if (!appsRes.success) {
+            console.error('Failed to list Access apps:', JSON.stringify(appsRes.errors));
+            process.exit(1);
+          }
+          const existing = (appsRes.result || []).find(a => a.domain === domain);
+
+          let appId;
+          if (existing) {
+            appId = existing.id || existing.uid;
+            console.log(`Found existing Access application (${appId})`);
+          } else {
+            const createRes = await cfApi('POST', `/accounts/${accountId}/access/apps`, {
+              name: `markmap-actions / ${project}`,
+              domain,
+              type: 'self_hosted',
+              session_duration: '24h',
+              allowed_idps: [],
+              auto_redirect_to_identity: false,
+            });
+            if (!createRes.success) {
+              console.error('Failed to create Access application:', JSON.stringify(createRes.errors));
+              process.exit(1);
+            }
+            appId = createRes.result.id || createRes.result.uid;
+            console.log(`Created Access application (${appId}) for ${domain}`);
+          }
+
+          // Replace all existing policies with the new one
+          const existingPolicies = await cfApi('GET', `/accounts/${accountId}/access/apps/${appId}/policies`);
+          for (const p of existingPolicies.result || []) {
+            await cfApi('DELETE', `/accounts/${accountId}/access/apps/${appId}/policies/${p.id}`);
+          }
+
+          const policyRes = await cfApi('POST', `/accounts/${accountId}/access/apps/${appId}/policies`, {
+            name: 'markmap-actions auto policy',
+            decision: 'allow',
+            include: includes,
+            exclude: [],
+            require: [],
+          });
+          if (!policyRes.success) {
+            console.error('Failed to create Access policy:', JSON.stringify(policyRes.errors));
+            process.exit(1);
+          }
+          console.log(`Access policy applied. Only authorized users can view https://${domain}`);
+        }
+
+        main().catch(e => { console.error(e.message); process.exit(1); });
+        JSEOF
 
 branding:
   icon: 'map'
