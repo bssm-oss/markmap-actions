@@ -81,6 +81,10 @@ Every input is **optional** — the defaults work out of the box.
 | `toolbar` | `true` | Show the zoom / expand / fullscreen toolbar in the mindmap |
 | `offline` | `false` | Bundle all assets inline — produces a single self-contained file (no CDN) |
 | `deploy-pages` | `true` | Deploy to GitHub Pages automatically |
+| `deploy-target` | `` | Override deployment target: `github-pages` \| `cloudflare` |
+| `cloudflare-account-id` | `` | Cloudflare account ID (required when `deploy-target: cloudflare`) |
+| `cloudflare-api-token` | `` | Cloudflare API token with Pages:Edit permission |
+| `cloudflare-project-name` | `` | Cloudflare Pages project name (defaults to repo name) |
 | `commit` | `false` | Commit generated files back to the repository |
 | `commit-message` | `chore: update markmap visualizations` | Commit message when `commit: true` |
 | `lang` | `en` | Language of the index page: `en` \| `ko` |
@@ -154,6 +158,23 @@ An `index.html` is automatically generated at `.markmap/index.html` — it shows
     commit: 'true'
     deploy-pages: 'false'
 ```
+
+### Deploy to Cloudflare Pages (private repo friendly, free)
+
+> Required: [create a Cloudflare API token](https://dash.cloudflare.com/profile/api-tokens) with **Cloudflare Pages: Edit** permission, then add it to your repo Secrets.
+
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-target: 'cloudflare'
+    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    # cloudflare-project-name: 'my-docs'  # optional, defaults to repo name
+```
+
+The Pages project is created automatically on first run. Your site will be at `https://<project>.pages.dev`.
+
+No special workflow permissions needed — remove `pages: write` and `id-token: write` when using Cloudflare.
 
 ### Offline mode (no CDN, fully self-contained)
 

@@ -80,6 +80,10 @@ https://<조직명>.github.io/<레포명>/
 | `toolbar` | `true` | 확대/축소/전체화면 툴바 표시 여부 |
 | `offline` | `false` | 에셋 인라인 삽입 — CDN 없는 단일 완성 파일 생성 |
 | `deploy-pages` | `true` | GitHub Pages 자동 배포 |
+| `deploy-target` | `` | 배포 대상 직접 지정: `github-pages` \| `cloudflare` |
+| `cloudflare-account-id` | `` | Cloudflare 계정 ID (`deploy-target: cloudflare` 시 필요) |
+| `cloudflare-api-token` | `` | Pages:Edit 권한의 Cloudflare API 토큰 |
+| `cloudflare-project-name` | `` | Cloudflare Pages 프로젝트 이름 (기본값: 레포 이름) |
 | `commit` | `false` | 생성 파일을 레포에 커밋 |
 | `commit-message` | `chore: update markmap visualizations` | `commit: true` 시 커밋 메시지 |
 | `lang` | `en` | 인덱스 페이지 언어: `en` \| `ko` |
@@ -153,6 +157,23 @@ docs/api/intro.md      →  .markmap/docs/api/intro.html
     commit: 'true'
     deploy-pages: 'false'
 ```
+
+### Cloudflare Pages에 배포 (Private 레포 무료 지원)
+
+> 사전 준비: [Cloudflare API 토큰 생성](https://dash.cloudflare.com/profile/api-tokens) — **Cloudflare Pages: Edit** 권한 필요. 생성 후 레포 Secrets에 추가.
+
+```yaml
+- uses: bssm-oss/markmap-actions@main
+  with:
+    deploy-target: 'cloudflare'
+    cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    # cloudflare-project-name: 'my-docs'  # 선택사항, 기본값: 레포 이름
+```
+
+첫 실행 시 Cloudflare Pages 프로젝트가 자동으로 생성됩니다. 사이트 URL은 `https://<프로젝트명>.pages.dev` 형태입니다.
+
+Cloudflare 사용 시 `pages: write`, `id-token: write` 권한은 필요 없습니다.
 
 ### 오프라인 모드 (CDN 없는 완전 자급자족 파일)
 

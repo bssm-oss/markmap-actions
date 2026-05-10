@@ -41,6 +41,25 @@ inputs:
         id-token: write
     required: false
     default: 'true'
+  deploy-target:
+    description: |
+      Deployment target: github-pages | cloudflare
+      Overrides deploy-pages when set to cloudflare.
+      Leave empty to use deploy-pages behavior (default).
+    required: false
+    default: ''
+  cloudflare-account-id:
+    description: 'Cloudflare account ID (required when deploy-target is cloudflare)'
+    required: false
+    default: ''
+  cloudflare-api-token:
+    description: 'Cloudflare API token with Pages:Edit permission (required when deploy-target is cloudflare)'
+    required: false
+    default: ''
+  cloudflare-project-name:
+    description: 'Cloudflare Pages project name (defaults to repository name)'
+    required: false
+    default: ''
   lang:
     description: 'Default language for the index page (en or ko)'
     required: false
@@ -54,8 +73,8 @@ outputs:
     description: 'Newline-separated list of source files that failed to convert'
     value: ${{ steps.generate.outputs.failed-files }}
   page-url:
-    description: 'URL of the deployed GitHub Pages site'
-    value: ${{ steps.deploy.outputs.page_url }}
+    description: 'URL of the deployed site (GitHub Pages or Cloudflare Pages)'
+    value: ${{ steps.deploy-github.outputs.page_url || steps.deploy-cf.outputs.cf_url }}
 
 runs:
   using: composite
@@ -74,9 +93,11 @@ runs:
         INPUT_COMMIT-MESSAGE: ${{ inputs.commit-message }}
         INPUT_LANG: ${{ inputs.lang }}
 
+    # ── GitHub Pages ────────────────────────────────────────────────────────
+
     - id: enable-pages
       name: Enable GitHub Pages if not already active
-      if: ${{ inputs.deploy-pages == 'true' }}
+      if: ${{ inputs.deploy-pages == 'true' && inputs.deploy-target != 'cloudflare' }}
       env:
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
@@ -103,8 +124,8 @@ runs:
           else
             MSG=$(echo "$BODY" | head -1)
             echo "::warning::GitHub Pages could not be enabled (HTTP $CODE)."
-            echo "::warning::This usually means the repository is private and the plan does not support Pages."
-            echo "::warning::Use deploy-pages: 'false' and commit: 'true' to commit generated files to the repo instead."
+            echo "::warning::Private repositories may require a paid GitHub plan."
+            echo "::warning::Alternatives: deploy-target: cloudflare  |  commit: true  |  make the repo public"
             echo "::warning::Details: $MSG"
             echo "pages_ready=false" >> $GITHUB_OUTPUT
           fi
@@ -116,15 +137,41 @@ runs:
       shell: bash
 
     - name: Upload Pages artifact
-      if: ${{ inputs.deploy-pages == 'true' && steps.enable-pages.outputs.pages_ready == 'true' }}
+      if: ${{ inputs.deploy-pages == 'true' && inputs.deploy-target != 'cloudflare' && steps.enable-pages.outputs.pages_ready == 'true' }}
       uses: actions/upload-pages-artifact@v3
       with:
         path: ${{ inputs.output-dir }}
 
-    - id: deploy
+    - id: deploy-github
       name: Deploy to GitHub Pages
-      if: ${{ inputs.deploy-pages == 'true' && steps.enable-pages.outputs.pages_ready == 'true' }}
+      if: ${{ inputs.deploy-pages == 'true' && inputs.deploy-target != 'cloudflare' && steps.enable-pages.outputs.pages_ready == 'true' }}
       uses: actions/deploy-pages@v4
+
+    # ── Cloudflare Pages ────────────────────────────────────────────────────
+
+    - id: deploy-cf
+      name: Deploy to Cloudflare Pages
+      if: ${{ inputs.deploy-target == 'cloudflare' }}
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CF_PROJECT: ${{ inputs.cloudflare-project-name }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        PROJECT="${CF_PROJECT:-${GITHUB_REPOSITORY##*/}}"
+        echo "Deploying to Cloudflare Pages project: $PROJECT"
+
+        OUTPUT=$(npx wrangler@latest pages deploy "$OUTPUT_DIR" \
+          --project-name "$PROJECT" \
+          --commit-dirty=true 2>&1)
+        echo "$OUTPUT"
+
+        URL=$(echo "$OUTPUT" | grep -oE 'https://[^ ]+\.pages\.dev[^ ]*' | tail -1)
+        if [ -n "$URL" ]; then
+          echo "cf_url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
+        fi
 
 branding:
   icon: 'map'
