@@ -11,6 +11,7 @@ import {
   type CSSItem,
 } from 'markmap-common';
 import puppeteer, { type Browser } from 'puppeteer-core';
+import MarkdownIt from 'markdown-it';
 
 export type { Browser };
 
@@ -99,29 +100,102 @@ export async function convertToHtml(
     urlBuilder: transformer.urlBuilder,
   });
 
-  const backBtn = `<style>
-#mm-back{position:fixed;top:14px;left:14px;z-index:9999;
-display:flex;align-items:center;gap:6px;
-padding:6px 12px 6px 8px;border-radius:8px;
-background:rgba(13,17,23,0.82);backdrop-filter:blur(10px);
-border:1px solid #30363d;color:#e6edf3;
-font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-font-size:13px;font-weight:500;text-decoration:none;
-transition:border-color .15s,background .15s;cursor:pointer;}
+  const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
+  const readHtml = md.render(content);
+
+  const toolbar = `<style>
+#mm-toolbar{position:fixed;top:14px;left:14px;z-index:9999;display:flex;align-items:center;gap:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+#mm-back{display:flex;align-items:center;gap:5px;padding:6px 11px 6px 8px;border-radius:8px;background:rgba(13,17,23,0.82);backdrop-filter:blur(10px);border:1px solid #30363d;color:#e6edf3;font-size:13px;font-weight:500;text-decoration:none;transition:border-color .15s,background .15s;cursor:pointer;}
 #mm-back:hover{border-color:#03c75a;background:rgba(3,199,90,0.12);color:#03c75a;}
 #mm-back svg{flex-shrink:0;transition:transform .15s;}
 #mm-back:hover svg{transform:translateX(-2px);}
+#mm-view-toggle{display:flex;border-radius:8px;overflow:hidden;border:1px solid #30363d;background:rgba(13,17,23,0.82);backdrop-filter:blur(10px);}
+#mm-view-toggle button{padding:6px 13px;border:none;background:transparent;color:#7d8590;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,color .15s;line-height:1;}
+#mm-view-toggle button.active{background:#03c75a;color:#fff;}
+#mm-view-toggle button:hover:not(.active){color:#e6edf3;background:rgba(255,255,255,0.06);}
+
+#mm-read-view{display:none;position:fixed;inset:0;z-index:200;overflow-y:auto;padding:72px 24px 60px;}
+#mm-read-view.visible{display:block;}
+#mm-read-inner{max-width:740px;margin:0 auto;padding:0 8px;}
+
+/* light reading bg */
+#mm-read-view{background:#ffffff;color:#1f2328;}
+@media(prefers-color-scheme:dark){
+  #mm-read-view{background:#0d1117;color:#e6edf3;}
+  #mm-read-inner h1,#mm-read-inner h2,#mm-read-inner h3{border-color:#30363d;}
+  #mm-read-inner a{color:#58a6ff;}
+  #mm-read-inner code{background:#1c2128;color:#e6edf3;border-color:#30363d;}
+  #mm-read-inner pre{background:#1c2128;border-color:#30363d;}
+  #mm-read-inner blockquote{border-color:#30363d;color:#7d8590;}
+  #mm-read-inner table td,#mm-read-inner table th{border-color:#30363d;}
+  #mm-read-inner table tr:nth-child(2n){background:#1c2128;}
+}
+
+#mm-read-inner{font-size:16px;line-height:1.75;}
+#mm-read-inner h1,#mm-read-inner h2,#mm-read-inner h3,#mm-read-inner h4{margin:1.5em 0 .6em;font-weight:700;line-height:1.3;}
+#mm-read-inner h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid #d1d9e0;}
+#mm-read-inner h2{font-size:1.45em;padding-bottom:.3em;border-bottom:1px solid #d1d9e0;}
+#mm-read-inner h3{font-size:1.2em;}
+#mm-read-inner p{margin:.8em 0;}
+#mm-read-inner a{color:#0969da;text-decoration:none;}
+#mm-read-inner a:hover{text-decoration:underline;}
+#mm-read-inner ul,#mm-read-inner ol{padding-left:2em;margin:.6em 0;}
+#mm-read-inner li{margin:.3em 0;}
+#mm-read-inner code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:.875em;padding:.2em .4em;border-radius:6px;background:#f6f8fa;border:1px solid #d1d9e0;}
+#mm-read-inner pre{background:#f6f8fa;border:1px solid #d1d9e0;border-radius:8px;padding:16px;overflow-x:auto;margin:1em 0;}
+#mm-read-inner pre code{background:none;border:none;padding:0;font-size:.875em;}
+#mm-read-inner blockquote{border-left:4px solid #d1d9e0;padding:.4em 1em;margin:1em 0;color:#636c76;}
+#mm-read-inner table{border-collapse:collapse;width:100%;margin:1em 0;}
+#mm-read-inner table th,#mm-read-inner table td{border:1px solid #d1d9e0;padding:8px 13px;text-align:left;}
+#mm-read-inner table th{background:#f6f8fa;font-weight:600;}
+#mm-read-inner table tr:nth-child(2n){background:#f6f8fa;}
+#mm-read-inner img{max-width:100%;border-radius:6px;}
+#mm-read-inner hr{border:none;border-top:1px solid #d1d9e0;margin:1.5em 0;}
 </style>
-<a id="mm-back" href="javascript:history.back()">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-<polyline points="15 18 9 12 15 6"/>
-</svg><span id="mm-back-label">Back</span></a>
+
+<div id="mm-toolbar">
+  <a id="mm-back" href="javascript:history.back()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <span id="mm-back-label">Back</span>
+  </a>
+  <div id="mm-view-toggle">
+    <button id="btn-graph" class="active">&#x1F5FA; <span class="lbl-graph">Graph</span></button>
+    <button id="btn-read">&#x1F4C4; <span class="lbl-read">Read</span></button>
+  </div>
+</div>
+
+<div id="mm-read-view">
+  <div id="mm-read-inner">${readHtml}</div>
+</div>
+
 <script>(function(){
-  var l=localStorage.getItem('mm-lang')||'en';
-  document.getElementById('mm-back-label').textContent=l==='ko'?'뒤로':'Back';
+  var lang=localStorage.getItem('mm-lang')||'en';
+  var L={en:{back:'Back',graph:'Graph',read:'Read'},ko:{back:'뒤로',graph:'그래프',read:'읽기'}};
+  var t=L[lang]||L.en;
+  document.getElementById('mm-back-label').textContent=t.back;
+  document.querySelectorAll('.lbl-graph').forEach(function(e){e.textContent=t.graph;});
+  document.querySelectorAll('.lbl-read').forEach(function(e){e.textContent=t.read;});
+
+  var readView=document.getElementById('mm-read-view');
+  var btnG=document.getElementById('btn-graph');
+  var btnR=document.getElementById('btn-read');
+
+  function setView(v){
+    var isRead=v==='read';
+    readView.classList.toggle('visible',isRead);
+    btnG.classList.toggle('active',!isRead);
+    btnR.classList.toggle('active',isRead);
+    localStorage.setItem('mm-view',v);
+  }
+
+  btnG.addEventListener('click',function(){setView('graph');});
+  btnR.addEventListener('click',function(){setView('read');});
+
+  var saved=localStorage.getItem('mm-view');
+  if(saved==='read') setView('read');
 })();</script>`;
 
-  return html.replace('</body>', backBtn + '\n</body>');
+  return html.replace('</body>', toolbar + '\n</body>');
 }
 
 export function rewriteMdLinks(
