@@ -159,8 +159,8 @@ export async function convertToHtml(
     <span id="mm-back-label">Back</span>
   </a>
   <div id="mm-view-toggle">
-    <button id="btn-graph" class="active">&#x1F5FA; <span class="lbl-graph">Graph</span></button>
-    <button id="btn-read">&#x1F4C4; <span class="lbl-read">Read</span></button>
+    <button id="btn-graph" class="active"><span class="lbl-graph">Graph</span></button>
+    <button id="btn-read"><span class="lbl-read">Read</span></button>
   </div>
 </div>
 
