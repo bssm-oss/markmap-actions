@@ -234,20 +234,41 @@ runs:
           });
         }
 
-        function parsePolicy(text) {
+        async function getGithubIdpId() {
+          const res = await cfApi('GET', `/accounts/${accountId}/access/identity_providers?per_page=100`);
+          if (!res.success) { console.warn('Could not list identity providers:', JSON.stringify(res.errors)); return null; }
+          const idp = (res.result || []).find(p => p.type === 'github');
+          if (!idp) {
+            console.warn('No GitHub identity provider found. GitHub org/team rules require GitHub to be configured as an IdP in Cloudflare Zero Trust → Settings → Authentication.');
+            return null;
+          }
+          console.log(`Found GitHub IdP: ${idp.name} (${idp.id})`);
+          return idp.id;
+        }
+
+        async function parsePolicy(text) {
           const includes = [];
-          for (const line of text.split('\n')) {
+          let githubIdpId = null;
+          const lines = text.split('\n');
+          const needsGithub = lines.some(l => /^-\s+(github-org|github-team):/.test(l.trim()));
+          if (needsGithub) githubIdpId = await getGithubIdpId();
+
+          for (const line of lines) {
             const m = line.trim().match(/^-\s+(\S+):\s+(.+)$/);
             if (!m) continue;
             const [, type, value] = m;
             const v = value.trim();
             if (type === 'github-org') {
-              includes.push({ 'github-organization': { name: v } });
+              const rule = { name: v };
+              if (githubIdpId) rule.identity_provider_id = githubIdpId;
+              includes.push({ 'github-organization': rule });
             } else if (type === 'github-team') {
               const slash = v.indexOf('/');
               const org  = slash >= 0 ? v.slice(0, slash) : v;
               const team = slash >= 0 ? v.slice(slash + 1) : '';
-              includes.push({ 'github-organization': { name: org, ...(team ? { team } : {}) } });
+              const rule = { name: org, ...(team ? { team } : {}) };
+              if (githubIdpId) rule.identity_provider_id = githubIdpId;
+              includes.push({ 'github-organization': rule });
             } else if (type === 'email-domain') {
               includes.push({ email_domain: { domain: v } });
             } else if (type === 'email') {
@@ -275,7 +296,7 @@ runs:
         }
 
         async function main() {
-          const includes = parsePolicy(policyRaw);
+          const includes = await parsePolicy(policyRaw);
           if (includes.length === 0) {
             console.log('No valid access policy rules parsed. Skipping Cloudflare Access setup.');
             return;
