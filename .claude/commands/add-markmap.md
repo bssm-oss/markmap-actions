@@ -49,6 +49,20 @@ Ask the user these questions (use AskUserQuestion tool):
 - `en` (default): English index page
 - `ko`: Korean index page
 
+**Question 5 — Cloudflare Access policy (only when deploy-target is `cloudflare`)**
+
+Ask whether to restrict who can view the site:
+- `none` (default): Public — anyone with the URL can view
+- `github-org`: Only members of a GitHub organization
+- `email-domain`: Anyone with a specific email domain
+- `custom`: Define multiple rules (github-org, github-team, email-domain, email)
+
+If not `none`, ask for the value (org name, domain, or full YAML rule list).
+
+> Prerequisites for any access policy:
+> - Cloudflare Zero Trust dashboard → Settings → Authentication → add GitHub (or another) as identity provider (one-time manual setup)
+> - API token must have `Zero Trust: Edit` permission in addition to `Pages: Edit`
+
 ### 4. Build the step snippet
 
 Based on answers, construct the `uses: bssm-oss/markmap-actions@main` step.
@@ -61,7 +75,7 @@ Based on answers, construct the `uses: bssm-oss/markmap-actions@main` step.
           lang: en
 ```
 
-**Cloudflare Pages:**
+**Cloudflare Pages (no access restriction):**
 ```yaml
       - uses: bssm-oss/markmap-actions@main
         with:
@@ -69,6 +83,35 @@ Based on answers, construct the `uses: bssm-oss/markmap-actions@main` step.
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           # cloudflare-project-name: 'my-docs'  # optional, defaults to repo name
+          files: '**/*.md'
+          lang: en
+```
+
+**Cloudflare Pages + GitHub org access restriction:**
+```yaml
+      - uses: bssm-oss/markmap-actions@main
+        with:
+          deploy-target: 'cloudflare'
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-access-policy: |
+            - github-org: <org-name>
+          files: '**/*.md'
+          lang: en
+```
+
+**Cloudflare Pages + custom access policy:**
+```yaml
+      - uses: bssm-oss/markmap-actions@main
+        with:
+          deploy-target: 'cloudflare'
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-access-policy: |
+            - github-org: my-org
+            - github-team: my-org/devs
+            - email-domain: company.com
+            - email: contractor@gmail.com
           files: '**/*.md'
           lang: en
 ```
@@ -138,7 +181,9 @@ To use Cloudflare Pages, set up the following GitHub Secrets:
 
 2. Create a Cloudflare API token
    https://dash.cloudflare.com/profile/api-tokens
-   → Create Token → select Cloudflare Pages: Edit permission
+   → Create Token → required permissions:
+     - Cloudflare Pages: Edit       (always required)
+     - Zero Trust: Edit             (only if using cloudflare-access-policy)
 
 3. Add to GitHub repo Secrets
    Repo → Settings → Secrets and variables → Actions → New repository secret
@@ -148,6 +193,22 @@ To use Cloudflare Pages, set up the following GitHub Secrets:
 Once set up, push any .md file to trigger deployment.
 Your site will be available at: https://<repo-name>.pages.dev
 (No custom domain required — .pages.dev is provided for free)
+```
+
+If the user also chose an access policy, add this additional note:
+
+```
+To use Cloudflare Access policy (one-time manual setup):
+
+1. Go to dash.cloudflare.com → Zero Trust → Settings → Authentication
+2. Click "+ Add new" → select GitHub
+3. Create a GitHub OAuth App at https://github.com/settings/developers
+   - Homepage URL: https://<your-team>.cloudflareaccess.com
+     (Find your team name in Zero Trust → Settings → General → Team domain)
+   - Authorization callback URL: shown on the Cloudflare GitHub IdP page
+4. Paste the Client ID and Client Secret into Cloudflare → Save
+
+After this, the access policy is applied automatically on every deploy.
 ```
 
 ### 7. Write or patch the file

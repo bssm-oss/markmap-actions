@@ -54,6 +54,20 @@ AskUserQuestion 툴을 사용하여 다음 질문들을 합니다:
 배포 대상으로 `cloudflare`를 선택한 경우에만 물어봅니다:
 - `cloudflare-project-name`: Cloudflare Pages 프로젝트 이름 (비워두면 레포 이름 자동 사용)
 
+**질문 6 — Cloudflare Access 인가 정책 (cloudflare 선택 시에만)**
+
+사이트를 볼 수 있는 사람을 제한할지 물어봅니다:
+- `none` (기본값): 공개 — URL을 아는 누구나 열람 가능
+- `github-org`: 특정 GitHub 조직 멤버만
+- `email-domain`: 특정 이메일 도메인 보유자만
+- `custom`: 복합 규칙 직접 정의 (github-org, github-team, email-domain, email 조합)
+
+`none`이 아닌 경우 구체적인 값(조직명, 도메인 등)을 추가로 질문합니다.
+
+> 인가 정책 사용 시 사전 조건:
+> - Cloudflare Zero Trust → Settings → Authentication에서 GitHub(또는 다른) IdP를 1회 수동 등록 필요
+> - API 토큰에 `Pages: Edit` 외에 `Zero Trust: Edit` 권한 추가 필요
+
 ### 4. 스텝 스니펫 작성
 
 답변을 바탕으로 `uses: bssm-oss/markmap-actions@main` 스텝을 구성합니다.
@@ -66,7 +80,7 @@ AskUserQuestion 툴을 사용하여 다음 질문들을 합니다:
           lang: ko
 ```
 
-**Cloudflare Pages (프로젝트 이름 지정 없음 → 레포 이름 자동 사용):**
+**Cloudflare Pages (접근 제한 없음):**
 ```yaml
       - uses: bssm-oss/markmap-actions@main
         with:
@@ -77,14 +91,31 @@ AskUserQuestion 툴을 사용하여 다음 질문들을 합니다:
           lang: ko
 ```
 
-**Cloudflare Pages (프로젝트 이름 직접 지정):**
+**Cloudflare Pages + GitHub 조직 멤버만 접근:**
 ```yaml
       - uses: bssm-oss/markmap-actions@main
         with:
           deploy-target: 'cloudflare'
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare-project-name: 'my-docs'
+          cloudflare-access-policy: |
+            - github-org: <조직명>
+          files: '**/*.md'
+          lang: ko
+```
+
+**Cloudflare Pages + 복합 인가 정책:**
+```yaml
+      - uses: bssm-oss/markmap-actions@main
+        with:
+          deploy-target: 'cloudflare'
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-access-policy: |
+            - github-org: my-org
+            - github-team: my-org/devs
+            - email-domain: company.com
+            - email: contractor@gmail.com
           files: '**/*.md'
           lang: ko
 ```
@@ -154,7 +185,9 @@ Cloudflare Pages를 사용하려면 GitHub Secrets 설정이 필요합니다:
 
 2. Cloudflare API 토큰 생성
    https://dash.cloudflare.com/profile/api-tokens
-   → Create Token → Cloudflare Pages: Edit 권한 선택
+   → Create Token → 필요 권한:
+     - Cloudflare Pages: Edit       (항상 필요)
+     - Zero Trust: Edit             (cloudflare-access-policy 사용 시에만)
 
 3. GitHub 레포 Secrets에 저장
    레포 → Settings → Secrets and variables → Actions → New repository secret
@@ -164,6 +197,22 @@ Cloudflare Pages를 사용하려면 GitHub Secrets 설정이 필요합니다:
 설정 완료 후 .md 파일을 push하면 자동으로 배포됩니다.
 배포 URL: https://<프로젝트명>.pages.dev
 (커스텀 도메인 불필요 — .pages.dev 무료 제공)
+```
+
+인가 정책도 설정한 경우 아래 안내를 추가로 출력합니다:
+
+```
+Cloudflare Access 인가 정책 사용을 위한 1회 수동 설정:
+
+1. dash.cloudflare.com → Zero Trust → Settings → Authentication 이동
+2. "+ Add new" 클릭 → GitHub 선택
+3. GitHub에서 OAuth App 생성 (https://github.com/settings/developers)
+   - Homepage URL: https://<팀명>.cloudflareaccess.com
+     (팀 이름: Zero Trust → Settings → General → Team domain 확인)
+   - Authorization callback URL: Cloudflare 화면에 표시된 URL 붙여넣기
+4. Client ID / Client Secret을 Cloudflare에 입력 → Save
+
+이후 배포 시마다 인가 정책이 자동으로 적용/갱신됩니다.
 ```
 
 ### 7. 파일 작성 또는 수정
