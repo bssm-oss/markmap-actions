@@ -239,7 +239,7 @@ export async function convertToHtml(
     transition:transform .28s cubic-bezier(.4,0,.2,1);
   }
   #mm-toc.visible{transform:translateY(0);pointer-events:auto;}
-  #mm-toc-fab{display:flex;}
+  /* FAB visibility controlled by JS setView() */
   #mm-toc-title{padding:12px 16px 8px;font-size:13px;}
   #mm-toc a{padding:8px 16px;font-size:13px;}
   #mm-toc a[data-level="2"]{padding-left:28px;}
@@ -381,6 +381,8 @@ export async function convertToHtml(
     btnG.classList.toggle('active',!isRead);
     btnR.classList.toggle('active',isRead);
     localStorage.setItem('mm-view',v);
+    if(tocFab) tocFab.style.display=isRead&&isMobile()?'flex':'none';
+    if(!isRead) closeMobileToc();
   }
   btnG.addEventListener('click',function(){setView('graph');});
   btnR.addEventListener('click',function(){setView('read');});
