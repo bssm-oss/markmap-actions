@@ -186,10 +186,10 @@ export async function convertToHtml(
 #mm-read-inner img{max-width:100%;border-radius:6px;}
 #mm-read-inner hr{border:none;border-top:2px solid var(--rv-border);margin:1.8em 0;}
 
-/* ── TOC panel ── */
+/* ── TOC panel — desktop ── */
 #mm-toc{
   position:fixed;top:60px;right:16px;z-index:9998;
-  width:min(220px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow-y:auto;
+  width:220px;max-height:calc(100vh - 80px);overflow-y:auto;
   background:var(--rv-toc-bg,rgba(255,255,255,0.95));
   border:1px solid var(--rv-border,#dee2e6);
   border-radius:10px;padding:10px 0;
@@ -200,9 +200,6 @@ export async function convertToHtml(
   transform:translateY(-6px);
   transition:opacity .22s ease,transform .22s ease;
   box-shadow:0 4px 20px rgba(0,0,0,0.12);
-}
-@media(max-width:600px){
-  #mm-toc{max-height:38vh;top:56px;right:12px;left:12px;width:auto;border-radius:12px;}
 }
 #mm-toc.visible{opacity:1;pointer-events:auto;transform:translateY(0);}
 #mm-toc-title{
@@ -218,6 +215,36 @@ export async function convertToHtml(
 #mm-toc a.active{color:var(--rv-accent,#03c75a);font-weight:600;}
 #mm-toc a[data-level="2"]{padding-left:22px;}
 #mm-toc a[data-level="3"]{padding-left:32px;font-size:11.5px;}
+
+/* ── TOC FAB + overlay (mobile only) ── */
+#mm-toc-fab{
+  display:none;position:fixed;bottom:22px;right:18px;z-index:9999;
+  width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--rv-accent,#03c75a);color:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,0.28);
+  align-items:center;justify-content:center;
+  transition:transform .13s;}
+#mm-toc-fab:active{transform:scale(0.91);}
+#mm-toc-overlay{
+  display:none;position:fixed;inset:0;z-index:9997;
+  background:rgba(0,0,0,0.45);}
+#mm-toc-overlay.visible{display:block;}
+
+/* ── TOC panel — mobile bottom sheet ── */
+@media(max-width:600px){
+  #mm-toc{
+    top:auto;bottom:0;left:0;right:0;width:100%;
+    max-height:60vh;border-radius:16px 16px 0 0;
+    opacity:1;pointer-events:none;transform:translateY(105%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+  }
+  #mm-toc.visible{transform:translateY(0);pointer-events:auto;}
+  #mm-toc-fab{display:flex;}
+  #mm-toc-title{padding:12px 16px 8px;font-size:13px;}
+  #mm-toc a{padding:8px 16px;font-size:13px;}
+  #mm-toc a[data-level="2"]{padding-left:28px;}
+  #mm-toc a[data-level="3"]{padding-left:42px;font-size:12.5px;}
+}
 
 /* scrollbar */
 #mm-toc::-webkit-scrollbar,#mm-read-view::-webkit-scrollbar{width:5px;}
@@ -239,6 +266,12 @@ export async function convertToHtml(
   <div id="mm-read-inner">${readHtml}</div>
 </div>
 <div id="mm-toc"><div id="mm-toc-title">Contents</div></div>
+<div id="mm-toc-overlay"></div>
+<button id="mm-toc-fab" aria-label="Table of contents">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/>
+  </svg>
+</button>
 
 <script>(function(){
   var lang=localStorage.getItem('mm-lang')||'en';
@@ -253,11 +286,17 @@ export async function convertToHtml(
   var btnG=document.getElementById('btn-graph');
   var btnR=document.getElementById('btn-read');
   var toc=document.getElementById('mm-toc');
+  var tocOverlay=document.getElementById('mm-toc-overlay');
+  var tocFab=document.getElementById('mm-toc-fab');
 
   /* ── Build TOC ── */
   function buildToc(){
     var headings=document.querySelectorAll('#mm-read-inner h1,#mm-read-inner h2,#mm-read-inner h3');
-    if(headings.length<2){toc.style.display='none';return;}
+    if(headings.length<2){
+      toc.style.display='none';
+      if(tocFab) tocFab.style.display='none';
+      return;
+    }
     headings.forEach(function(h,i){
       if(!h.id) h.id='mm-h-'+i;
       var level=parseInt(h.tagName[1]);
@@ -268,6 +307,7 @@ export async function convertToHtml(
       a.setAttribute('data-id',h.id);
       a.addEventListener('click',function(e){
         e.preventDefault();
+        closeMobileToc();
         document.getElementById(a.getAttribute('data-id')).scrollIntoView({behavior:'smooth',block:'start'});
       });
       toc.appendChild(a);
@@ -293,10 +333,31 @@ export async function convertToHtml(
     tocLinks.forEach(function(a,i){a.classList.toggle('active',i===active);});
   }
 
-  /* ── TOC show/hide on scroll ── */
+  /* ── Mobile: FAB + overlay ── */
+  function isMobile(){return window.matchMedia('(max-width:600px)').matches;}
+
+  function openMobileToc(){
+    toc.classList.add('visible');
+    tocOverlay.classList.add('visible');
+  }
+  function closeMobileToc(){
+    toc.classList.remove('visible');
+    tocOverlay.classList.remove('visible');
+  }
+
+  if(tocFab){
+    tocFab.addEventListener('click',function(){
+      toc.classList.contains('visible')?closeMobileToc():openMobileToc();
+    });
+  }
+  if(tocOverlay){
+    tocOverlay.addEventListener('click',closeMobileToc);
+  }
+
+  /* ── Desktop: show/hide on scroll ── */
   var tocTimer=null;
   var lastScrollTop=0;
-  function showToc(){
+  function showTocDesktop(){
     toc.classList.add('visible');
     clearTimeout(tocTimer);
     tocTimer=setTimeout(function(){toc.classList.remove('visible');},2200);
@@ -304,14 +365,14 @@ export async function convertToHtml(
 
   readView.addEventListener('scroll',function(){
     var st=readView.scrollTop;
-    if(Math.abs(st-lastScrollTop)>4) showToc();
+    if(!isMobile()&&Math.abs(st-lastScrollTop)>4) showTocDesktop();
     lastScrollTop=st;
     updateActive();
   });
 
-  /* hover keeps it visible */
-  toc.addEventListener('mouseenter',function(){clearTimeout(tocTimer);toc.classList.add('visible');});
-  toc.addEventListener('mouseleave',function(){tocTimer=setTimeout(function(){toc.classList.remove('visible');},800);});
+  /* desktop hover keeps it visible */
+  toc.addEventListener('mouseenter',function(){if(!isMobile()){clearTimeout(tocTimer);toc.classList.add('visible');}});
+  toc.addEventListener('mouseleave',function(){if(!isMobile()){tocTimer=setTimeout(function(){toc.classList.remove('visible');},800);}});
 
   /* ── View toggle ── */
   function setView(v){
