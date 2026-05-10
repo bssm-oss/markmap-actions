@@ -259,6 +259,21 @@ runs:
           return includes;
         }
 
+        const APP_NAME = `markmap-actions / ${project}`;
+
+        async function getAllApps() {
+          let page = 1, all = [];
+          while (true) {
+            const res = await cfApi('GET', `/accounts/${accountId}/access/apps?per_page=100&page=${page}`);
+            if (!res.success) { console.error('List apps failed:', JSON.stringify(res.errors)); process.exit(1); }
+            all = all.concat(res.result || []);
+            const info = res.result_info;
+            if (!info || all.length >= info.count) break;
+            page++;
+          }
+          return all;
+        }
+
         async function main() {
           const includes = parsePolicy(policyRaw);
           if (includes.length === 0) {
@@ -268,25 +283,29 @@ runs:
           console.log(`Applying Cloudflare Access policy to https://${domain}`);
           console.log('Rules:', JSON.stringify(includes, null, 2));
 
-          // Find or create Access Application
-          const appsRes = await cfApi('GET', `/accounts/${accountId}/access/apps`);
-          if (!appsRes.success) {
-            console.error('Failed to list Access apps:', JSON.stringify(appsRes.errors));
-            process.exit(1);
-          }
-          const existing = (appsRes.result || []).find(a => a.domain === domain);
+          // Find existing app by name (primary) or domain (fallback) — paginated
+          const apps = await getAllApps();
+          console.log(`Found ${apps.length} Access app(s) total.`);
+          const existing = apps.find(a =>
+            a.name === APP_NAME ||
+            a.domain?.toLowerCase().trim() === domain.toLowerCase()
+          );
 
           let appId;
           if (existing) {
             appId = existing.id || existing.uid;
-            console.log(`Found existing Access application (${appId})`);
+            console.log(`Found existing Access application "${existing.name}" (${appId})`);
+            // Update domain/name in case they drifted
+            await cfApi('PUT', `/accounts/${accountId}/access/apps/${appId}`, {
+              name: APP_NAME, domain, type: 'self_hosted',
+              session_duration: existing.session_duration || '24h',
+              allowed_idps: existing.allowed_idps || [],
+              auto_redirect_to_identity: existing.auto_redirect_to_identity || false,
+            });
           } else {
             const createRes = await cfApi('POST', `/accounts/${accountId}/access/apps`, {
-              name: `markmap-actions / ${project}`,
-              domain,
-              type: 'self_hosted',
-              session_duration: '24h',
-              allowed_idps: [],
+              name: APP_NAME, domain, type: 'self_hosted',
+              session_duration: '24h', allowed_idps: [],
               auto_redirect_to_identity: false,
             });
             if (!createRes.success) {
