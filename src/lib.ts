@@ -100,8 +100,14 @@ export async function convertToHtml(
     urlBuilder: transformer.urlBuilder,
   });
 
-  const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
-  const readHtml = md.render(content);
+  const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
+  let readHtml = md.render(content);
+
+  // Convert bare GitHub asset URLs (videos) to <video> elements
+  readHtml = readHtml.replace(
+    /<p><a href="(https:\/\/github\.com\/user-attachments\/assets\/[^"]+)">\1<\/a><\/p>/g,
+    '<p><video src="$1" controls style="max-width:100%;border-radius:6px;margin:.85em 0;display:block;"></video></p>',
+  );
 
   const toolbar = `<style>
 /* ── Toolbar ── */
@@ -184,6 +190,7 @@ export async function convertToHtml(
 #mm-read-inner table th{background:var(--rv-surface);font-weight:600;color:var(--rv-text);}
 #mm-read-inner table tr:nth-child(2n) td{background:var(--rv-surface);}
 #mm-read-inner img{max-width:100%;border-radius:6px;}
+#mm-read-inner video{max-width:100%;border-radius:6px;display:block;}
 #mm-read-inner hr{border:none;border-top:2px solid var(--rv-border);margin:1.8em 0;}
 
 /* ── TOC panel — desktop ── */
