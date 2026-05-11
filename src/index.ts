@@ -73,16 +73,24 @@ async function run(): Promise<void> {
         const html = await convertToHtml(content, {
           toolbar: needsHtml ? toolbar : false,
           offline: needsSvg ? true : offline,
+          sourceFilePath: filePath,
+          outputFilePath: needsHtml
+            ? buildOutputPath(filePath, workspaceDir, outputDir, '.html')
+            : undefined,
         });
 
         if (needsHtml) {
           const htmlPath = buildOutputPath(filePath, workspaceDir, outputDir, '.html');
           await fs.mkdir(path.dirname(htmlPath), { recursive: true });
 
-          // When format is 'both' and offline:false, re-generate without inlining
           const rawHtml =
             format === 'both' && !offline
-              ? await convertToHtml(content, { toolbar, offline: false })
+              ? await convertToHtml(content, {
+                  toolbar,
+                  offline: false,
+                  sourceFilePath: filePath,
+                  outputFilePath: htmlPath,
+                })
               : html;
 
           await fs.writeFile(htmlPath, rewriteMdLinks(rawHtml, convertedFilesSet, filePath), 'utf-8');

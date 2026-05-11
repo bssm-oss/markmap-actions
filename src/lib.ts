@@ -17,6 +17,59 @@ export type { Browser };
 
 const TOOLBAR_VERSION = '0.18.12';
 
+const VIDEO_EXTS = /\.(mp4|webm|ogg|mov)$/i;
+const IMG_EXTS = /\.(png|jpe?g|gif|svg|webp|bmp|ico|avif)$/i;
+
+export function convertMediaTags(html: string): string {
+  let out = html.replace(
+    /<img\s([^>]*?)src="([^"]+)"([^>]*)>/gi,
+    (match, before: string, src: string, after: string) => {
+      if (VIDEO_EXTS.test(src)) {
+        const attrs = (before + ' ' + after).replace(/\/?>$/, '').trim();
+        return `<video ${attrs} src="${src}" controls style="max-width:100%;border-radius:6px;margin:.85em 0;display:block;"></video>`;
+      }
+      return match;
+    },
+  );
+
+  out = out.replace(
+    /<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
+    (match, href: string, content: string) => {
+      if (VIDEO_EXTS.test(href) && content.trim() === href) {
+        return `<video src="${href}" controls style="max-width:100%;border-radius:6px;margin:.85em 0;display:block;"></video>`;
+      }
+      return match;
+    },
+  );
+
+  return out;
+}
+
+export function rewriteRelativeAssetUrls(
+  html: string,
+  sourceFilePath: string,
+  outputFilePath: string,
+): string {
+  const srcDir = path.dirname(sourceFilePath);
+  const outDir = path.dirname(outputFilePath);
+
+  return html.replace(
+    /(<(?:img|video|source|a)\s[^>]*(?:src|href)=")([^"]+)(")/gi,
+    (_: string, prefix: string, url: string, suffix: string) => {
+      if (/^(https?:\/\/|\/\/|data:|#|mailto:)/.test(url)) return prefix + url + suffix;
+      const absAsset = path.resolve(srcDir, url);
+      const rel = path.relative(outDir, absAsset).split(path.sep).join('/');
+      return prefix + rel + suffix;
+    },
+  );
+}
+
+function walkRoot(obj: any, fn: (node: any) => void): void {
+  if (!obj || typeof obj !== 'object') return;
+  fn(obj);
+  if (Array.isArray(obj.c)) obj.c.forEach((child: any) => walkRoot(child, fn));
+}
+
 export function buildToolbarAssets(): IAssets {
   const renderToolbar = () => {
     const { markmap, mm } = window as any;
@@ -72,10 +125,16 @@ export async function inlineAssets(assets: IAssets): Promise<IAssets> {
 
 export async function convertToHtml(
   content: string,
-  options: { toolbar: boolean; offline: boolean },
+  options: { toolbar: boolean; offline: boolean; sourceFilePath?: string; outputFilePath?: string },
 ): Promise<string> {
   const transformer = new Transformer();
   const { root, features, frontmatter } = transformer.transform(content);
+
+  walkRoot(root, (node) => {
+    if (typeof node.c === 'string') {
+      node.c = convertMediaTags(node.c);
+    }
+  });
 
   const otherAssets = mergeAssets(
     { scripts: baseJsPaths.map((p) => buildJSItem(p)) },
@@ -103,11 +162,21 @@ export async function convertToHtml(
   const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
   let readHtml = md.render(content);
 
-  // Convert bare GitHub asset URLs (videos) to <video> elements
+  readHtml = convertMediaTags(readHtml);
+
   readHtml = readHtml.replace(
     /<p><a href="(https:\/\/github\.com\/user-attachments\/assets\/[^"]+)">\1<\/a><\/p>/g,
-    '<p><video src="$1" controls style="max-width:100%;border-radius:6px;margin:.85em 0;display:block;"></video></p>',
+    (match: string, url: string) => {
+      if (VIDEO_EXTS.test(url)) {
+        return `<p><video src="${url}" controls style="max-width:100%;border-radius:6px;margin:.85em 0;display:block;"></video></p>`;
+      }
+      return match.replace(/<a[^>]*>([^<]+)<\/a>/, '<img src="$1" style="max-width:100%;border-radius:6px;" />');
+    },
   );
+
+  if (options.sourceFilePath && options.outputFilePath) {
+    readHtml = rewriteRelativeAssetUrls(readHtml, options.sourceFilePath, options.outputFilePath);
+  }
 
   const toolbar = `<style>
 /* ── Toolbar ── */
